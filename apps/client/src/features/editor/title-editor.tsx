@@ -90,7 +90,9 @@ export function TitleEditor({
 
   useEffect(() => {
     const pageSlug = buildPageUrl(spaceSlug, slugId, title);
+    let hash = window.location.hash;
     navigate(pageSlug, { replace: true });
+    window.location.hash = hash; // Preserve the hash after navigation
   }, [title]);
 
   const saveTitle = useCallback(() => {

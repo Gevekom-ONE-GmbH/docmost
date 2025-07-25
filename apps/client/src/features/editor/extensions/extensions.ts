@@ -75,6 +75,7 @@ import { MarkdownClipboard } from "@/features/editor/extensions/markdown-clipboa
 import EmojiCommand from "./emoji-command";
 import { CharacterCount } from "@tiptap/extension-character-count";
 import { countWords } from "alfaaz";
+import { CustomHeading } from './custom-heading.tsx';
 
 const lowlight = createLowlight(common);
 lowlight.register("mermaid", plaintext);
@@ -102,6 +103,7 @@ export const mainExtensions = [
       },
     },
   }),
+  CustomHeading,
   Placeholder.configure({
     placeholder: ({ node }) => {
       if (node.type.name === "heading") {

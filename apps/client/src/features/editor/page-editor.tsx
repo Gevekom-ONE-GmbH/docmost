@@ -253,6 +253,9 @@ export default function PageEditor({
           // @ts-ignore
           setEditor(editor);
           editor.storage.pageId = pageId;
+          setTimeout(() => {
+            scrollToEl();
+          }, 100);
         }
       },
       onUpdate({ editor }) {
@@ -260,10 +263,72 @@ export default function PageEditor({
         const editorJson = editor.getJSON();
         //update local page cache to reduce flickers
         debouncedUpdateContent(editorJson);
+        debouncedAssignIds();
       },
     },
     [pageId, editable, remoteProvider],
   );
+
+  const scrollToEl = () => {
+    const hash = window.location.hash;
+    if (hash) {
+      const el = document.getElementById(hash.substring(1));
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
+
+  const assignIds = () => {
+    if (!editor) return;
+    const tr = editor.state.tr;
+    let updated = false;
+    const existingIds = new Set<string>();
+
+    // First, collect all existing IDs
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === 'heading' && node.attrs.id) {
+        existingIds.add(node.attrs.id);
+      }
+    });
+
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'heading') {
+        const text = node.textContent || 'heading';
+        const generatedId = generateSlug(text);
+        // Only assign if missing or not matching the generated slug
+        if (!node.attrs.id || node.attrs.id !== generatedId) {
+          // Ensure uniqueness by checking existingIds
+          let uniqueId = generatedId;
+          let counter = 1;
+          while (existingIds.has(uniqueId)) {
+            uniqueId = `${generatedId}-${counter++}`;
+          }
+          tr.setNodeMarkup(pos, undefined, {
+            ...node.attrs,
+            id: uniqueId,
+          });
+          existingIds.add(uniqueId);
+          updated = true;
+        }
+      }
+    });
+
+    if (updated) {
+      editor.view.dispatch(tr);
+    }
+
+    function generateSlug(baseText: string): string {
+      return baseText
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "-")      // spaces to dashes
+        .replace(/[^\w\-]+/g, "")  // remove non-word chars except dash
+        .replace(/\-\-+/g, "-");   // collapse multiple dashes
+    }
+  };
+
+  const debouncedAssignIds = useDebouncedCallback(assignIds, 300);
 
   const debouncedUpdateContent = useDebouncedCallback((newContent: any) => {
     const pageData = queryClient.getQueryData<IPage>(["pages", slugId]);

@@ -21,6 +21,7 @@ const MemoizedHistoryModal = React.memo(HistoryModal);
 export default function Page() {
   const { t } = useTranslation();
   const { pageSlug } = useParams();
+  console.log("URL hash: ", window.location.hash);
   const {
     data: page,
     isLoading,
@@ -47,6 +48,32 @@ export default function Page() {
     return <></>;
   }
 
+  function assignHeadingIds(doc: any) {
+    let idCount = 0;
+
+    const slugify = (text: string) =>
+      text.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^\w-]/g, "");
+
+    const traverse = (node: any) => {
+      if (node.type === "heading") {
+        const textNode = node.content[0];
+        const text = textNode?.text || `heading-${idCount}`;
+        node.attrs = {
+          ...node.attrs,
+          id: slugify(text) + (idCount > 0 ? `-${idCount}` : ""),
+        };
+        idCount++;
+      }
+      if (node.content) {
+        node.content.forEach(traverse);
+      }
+    };
+
+    traverse(doc);
+    return doc;
+  }
+  let content = assignHeadingIds(page.content)
+  console.log("Processed page content with IDs: ", content);
   return (
     page && (
       <div>
@@ -65,7 +92,7 @@ export default function Page() {
           key={page.id}
           pageId={page.id}
           title={page.title}
-          content={page.content}
+          content={content}
           slugId={page.slugId}
           spaceSlug={page?.space?.slug}
           editable={spaceAbility.can(
