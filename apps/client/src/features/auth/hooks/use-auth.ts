@@ -41,7 +41,13 @@ export default function useAuth() {
     try {
       await login(data);
       setIsLoading(false);
-      navigate(APP_ROUTE.HOME);
+      const originalPage = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("originalPage="))
+        ?.split("=")[1];
+
+      if (originalPage) window.location.href = originalPage;
+      else navigate(APP_ROUTE.HOME);
     } catch (err) {
       setIsLoading(false);
       console.log(err);

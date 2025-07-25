@@ -71,6 +71,7 @@ function redirectToLogin() {
     "/invites",
   ];
   if (!exemptPaths.some((path) => window.location.pathname.startsWith(path))) {
+    document.cookie = `originalPage=${window.location.href}; path=/`;
     window.location.href = APP_ROUTE.AUTH.LOGIN;
   }
 }
