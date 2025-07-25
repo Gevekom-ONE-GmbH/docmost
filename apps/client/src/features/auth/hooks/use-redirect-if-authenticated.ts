@@ -9,7 +9,13 @@ export function useRedirectIfAuthenticated() {
 
   useEffect(() => {
     if (data && data?.user) {
-      navigate(APP_ROUTE.HOME);
+      const originalPage = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("originalPage="))
+        ?.split("=")[1];
+
+      if (originalPage) window.location.href = originalPage;
+      else navigate(APP_ROUTE.HOME);
     }
   }, [isLoading, data]);
 }

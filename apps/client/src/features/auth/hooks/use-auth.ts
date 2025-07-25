@@ -41,14 +41,19 @@ export default function useAuth() {
     try {
       const response = await login(data);
       setIsLoading(false);
-
       // Check if MFA is required
       if (response?.userHasMfa) {
         navigate(APP_ROUTE.AUTH.MFA_CHALLENGE);
       } else if (response?.requiresMfaSetup) {
         navigate(APP_ROUTE.AUTH.MFA_SETUP_REQUIRED);
       } else {
-        navigate(APP_ROUTE.HOME);
+        const originalPage = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("originalPage="))
+          ?.split("=")[1];
+  
+        if (originalPage) window.location.href = originalPage;
+        else navigate(APP_ROUTE.HOME);
       }
     } catch (err) {
       setIsLoading(false);
