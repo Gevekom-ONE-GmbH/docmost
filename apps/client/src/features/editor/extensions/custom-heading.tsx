@@ -36,10 +36,14 @@ const CustomHeadingComponent = (props: any) => {
   }, [node.attrs.id]);
 
   return (
-    <NodeViewWrapper as={`h${level}`} className="custom-heading" {...node.attrs}>
-      <NodeViewContent as="span"/>
-      {id && <AnchorIcon id={id} />}
-    </NodeViewWrapper>  
+    <NodeViewWrapper
+      as={`h${level}`}
+      className="custom-heading"
+      {...node.attrs}
+    >
+      <NodeViewContent style={{ display: 'inline' }} />          
+      {node.content.size > 0 && <AnchorIcon id={id} />}
+    </NodeViewWrapper>
   )
 }
 

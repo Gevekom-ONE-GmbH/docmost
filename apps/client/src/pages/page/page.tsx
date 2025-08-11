@@ -56,7 +56,7 @@ export default function Page() {
 
     const traverse = (node: any) => {
       if (node.type === "heading") {
-        const textNode = node.content[0];
+        const textNode = node.content ? node.content[0] : null;
         const text = textNode?.text || `heading-${idCount}`;
         node.attrs = {
           ...node.attrs,
@@ -72,8 +72,7 @@ export default function Page() {
     traverse(doc);
     return doc;
   }
-  let content = assignHeadingIds(page.content)
-  console.log("Processed page content with IDs: ", content);
+  let content = page.content ? assignHeadingIds(page.content) : null;
   return (
     page && (
       <div>

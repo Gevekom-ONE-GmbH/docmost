@@ -291,25 +291,48 @@ export default function PageEditor({
         existingIds.add(node.attrs.id);
       }
     });
+    let updatedIds = new Set<string>();
 
     editor.state.doc.descendants((node, pos) => {
       if (node.type.name === 'heading') {
-        const text = node.textContent || 'heading';
-        const generatedId = generateSlug(text);
-        // Only assign if missing or not matching the generated slug
-        if (!node.attrs.id || node.attrs.id !== generatedId) {
-          // Ensure uniqueness by checking existingIds
-          let uniqueId = generatedId;
-          let counter = 1;
-          while (existingIds.has(uniqueId)) {
-            uniqueId = `${generatedId}-${counter++}`;
+        const text = node.textContent;
+        let generatedId: string;
+        if (!text) {
+          // If heading is empty, only assign an ID once and never update it again
+          if (!node.attrs.id) {
+            let prefix = "heading";
+            let uniqueId = generatedId;
+            let counter = 1;
+            while (existingIds.has(uniqueId)) {
+              uniqueId = `${prefix}-${counter++}`;
+            }
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              id: uniqueId,
+            });
+            existingIds.add(uniqueId);
+            updatedIds.add(uniqueId);
+            updated = true;
           }
-          tr.setNodeMarkup(pos, undefined, {
-            ...node.attrs,
-            id: uniqueId,
-          });
-          existingIds.add(uniqueId);
-          updated = true;
+        } else {
+          generatedId = generateSlug(text);
+          // Only assign if missing or not matching the generated slug
+          if (!node.attrs.id || node.attrs.id !== generatedId) {
+            console.log("Attr ID: " + node.attrs.id +  " Generated ID: " + generatedId);
+            // Ensure uniqueness by checking existingIds
+            let uniqueId = generatedId;
+            let counter = 1;
+            while (existingIds.has(uniqueId)) {
+              uniqueId = `${generatedId}-${counter++}`;
+            }
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              id: uniqueId,
+            });
+            existingIds.add(uniqueId);
+            updatedIds.add(uniqueId);
+            updated = true;
+          }
         }
       }
     });
