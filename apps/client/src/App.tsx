@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate, useLocation } from "react-router-dom";
 import SetupWorkspace from "@/pages/auth/setup-workspace.tsx";
 import LoginPage from "@/pages/auth/login";
 import Home from "@/pages/dashboard/home";
@@ -31,11 +31,40 @@ import Shares from "@/pages/settings/shares/shares.tsx";
 import ShareLayout from "@/features/share/components/share-layout.tsx";
 import ShareRedirect from '@/pages/share/share-redirect.tsx';
 import { useTrackOrigin } from "@/hooks/use-track-origin";
+import { useEffect } from "react";
 
 export default function App() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
   useRedirectToCloudSelect();
   useTrackOrigin();
+  useEffect(() => {
+    if(location.search) {
+      let params = new URLSearchParams(location.search);
+      if (params.has("authToken")) {
+        params.delete("authToken");
+        navigate({
+          pathname: location.pathname,
+          search: params.size ? "?" + params.toString() : "",
+        }, { replace: true });
+      }
+    } else {
+      let paramIndex = location.hash.indexOf("?");
+      let anchor = "";
+      if (paramIndex != -1) {
+        anchor = location.hash.substring(0, paramIndex);
+        let params = new URLSearchParams(location.hash.substring(paramIndex));
+        if (params.has("authToken")) {
+          params.delete("authToken");
+          navigate({
+            pathname: location.pathname,
+            hash: anchor + (params.size ? "?" + params.toString() : ""),
+          }, { replace: true });
+        }
+      }
+    }
+  }, [location, navigate]);
 
   return (
     <>
