@@ -1,13 +1,13 @@
 services:
   docmost:
-    image: docmost/docmost:latest
+    image: docmost-gevekom:0.24.1
     depends_on:
       - db
       - redis
     environment:
       APP_URL: 'http://localhost:3000'
-      APP_SECRET: 'REPLACE_WITH_LONG_SECRET'
-      DATABASE_URL: 'postgresql://docmost:STRONG_DB_PASSWORD@db:5432/docmost'
+      APP_SECRET: 'cca9eb0663c911f09118745d2263e9e9'
+      DATABASE_URL: 'postgresql://docmost:customPW@db:5432/docmost?schema=public'
       REDIS_URL: 'redis://redis:6379'
     ports:
       - "3000:3000"
@@ -20,10 +20,12 @@ services:
     environment:
       POSTGRES_DB: docmost
       POSTGRES_USER: docmost
-      POSTGRES_PASSWORD: STRONG_DB_PASSWORD
+      POSTGRES_PASSWORD: customPW
     restart: unless-stopped
     volumes:
-      - db_data:/var/lib/postgresql
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   redis:
     image: redis:8
@@ -31,6 +33,8 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
+    ports:
+      - "6379:6379"
 
 volumes:
   docmost:
