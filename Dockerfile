@@ -5,6 +5,8 @@ RUN npm install -g pnpm@10.4.0
 
 FROM base AS builder
 
+ENV NODE_OPTIONS="--max-old-space-size=8192"
+
 WORKDIR /app
 
 COPY . .
