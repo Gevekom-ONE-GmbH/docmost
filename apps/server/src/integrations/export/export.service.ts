@@ -100,6 +100,7 @@ export class ExportService {
     format: string,
     includeAttachments: boolean,
     includeChildren: boolean,
+    nozip?: boolean
   ) {
     let pages: Page[];
 
@@ -113,7 +114,7 @@ export class ExportService {
       const page = await this.pageRepo.findById(pageId, {
         includeContent: true,
       });
-      if (page){
+      if (page) {
         pages = [page];
       }
     }
@@ -127,6 +128,40 @@ export class ExportService {
     pages[parentPageIndex].parentPageId = null;
 
     const tree = buildTree(pages as Page[]);
+
+    if (nozip) {
+      // Recursively build tree with metadata
+      const buildTreeWithMetadata = async (
+        tree: PageExportTree,
+        parentPageId: string | null,
+        parentPath: string | null = null,
+      ) => {
+        const children = tree[parentPageId] || [];
+        return Promise.all(children.map(async (page) => {
+          const pageTitle = getPageTitle(page.title);
+          const pagePath = pageTitle; // You may want to slugify or use a path logic here
+          const metadata: ExportPageMetadata = {
+            pageId: page.id,
+            slugId: page.slugId,
+            icon: page.icon ?? null,
+            position: page.position,
+            parentPath,
+            createdAt: page.createdAt?.toISOString() ?? new Date().toISOString(),
+            updatedAt: page.updatedAt?.toISOString() ?? new Date().toISOString(),
+          };
+            return {
+            ...page,
+            metadata,
+            content: await this.exportPage(format, page, true), // Use exportPage to get HTML or Markdown
+            children: await buildTreeWithMetadata(tree, page.id, pagePath),
+            };
+        }));
+      };
+
+      const result = await buildTreeWithMetadata(tree, null, null);
+
+      return result;
+    }
 
     const zip = new JSZip();
     await this.zipPages(tree, format, zip, includeAttachments);

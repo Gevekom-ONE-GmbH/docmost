@@ -38,7 +38,7 @@ export class ExportController {
   @HttpCode(HttpStatus.OK)
   @Post('pages/export')
   async exportPage(
-    @Body() dto: ExportPageDto,
+    @Body() dto: ExportPageDto & { nozip?: boolean },
     @AuthUser() user: User,
     @Res() res: FastifyReply,
   ) {
@@ -55,6 +55,24 @@ export class ExportController {
       throw new ForbiddenException();
     }
 
+    if (dto.nozip) {
+      // Export as plain JSON (no zip)
+      const exportResult = await this.exportService.exportPages(
+        dto.pageId,
+        dto.format,
+        dto.includeAttachments,
+        dto.includeChildren,
+        true
+      );
+      // exportResult: { content: string, metadata: any }
+      res.headers({
+        'Content-Type': 'application/json',
+      });
+      res.send(exportResult);
+      return;
+    }
+
+    // Default: export as zip
     const zipFileStream = await this.exportService.exportPages(
       dto.pageId,
       dto.format,
