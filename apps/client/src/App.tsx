@@ -1,4 +1,10 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import SetupWorkspace from "@/pages/auth/setup-workspace.tsx";
 import LoginPage from "@/pages/auth/login";
 import Home from "@/pages/dashboard/home";
@@ -46,11 +52,48 @@ import FavoritesPage from "@/pages/favorites/favorites-page";
 import AiChat from "@/ee/ai-chat/pages/ai-chat.tsx";
 import VerifyEmail from "@/ee/pages/verify-email.tsx";
 import LabelPage from "@/pages/label/label-page";
+import { useEffect } from "react";
 
 export default function App() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
   useRedirectToCloudSelect();
   useTrackOrigin();
+
+  // Strip an `authToken` (used for external auto-login deep links) from the URL
+  // once consumed, so it is not left visible or bookmarked.
+  useEffect(() => {
+    if (location.search) {
+      const params = new URLSearchParams(location.search);
+      if (params.has("authToken")) {
+        params.delete("authToken");
+        navigate(
+          {
+            pathname: location.pathname,
+            search: params.size ? "?" + params.toString() : "",
+          },
+          { replace: true },
+        );
+      }
+    } else {
+      const paramIndex = location.hash.indexOf("?");
+      if (paramIndex !== -1) {
+        const anchor = location.hash.substring(0, paramIndex);
+        const params = new URLSearchParams(location.hash.substring(paramIndex));
+        if (params.has("authToken")) {
+          params.delete("authToken");
+          navigate(
+            {
+              pathname: location.pathname,
+              hash: anchor + (params.size ? "?" + params.toString() : ""),
+            },
+            { replace: true },
+          );
+        }
+      }
+    }
+  }, [location, navigate]);
 
   return (
     <>
