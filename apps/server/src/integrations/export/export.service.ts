@@ -109,6 +109,7 @@ export class ExportService {
     includeChildren: boolean,
     userId?: string,
     ignorePermissions = false,
+    nozip = false,
   ) {
     let pages: Page[];
 
@@ -152,6 +153,14 @@ export class ExportService {
     // set to null to make export of pages with parentId work
     pages[parentPageIndex].parentPageId = null;
 
+    if (nozip) {
+      // Export the page hierarchy as a plain JSON tree with metadata instead of
+      // a zip archive (consumed by external Gevekom tooling).
+      const tree = buildTree(pages as Page[]);
+      const content = await this.buildTreeWithMetadata(tree, format, null, null);
+      return { type: 'json' as const, content, page: pages[0] };
+    }
+
     const isSinglePage = pages.length === 1 && !includeAttachments;
 
     if (isSinglePage) {
@@ -180,6 +189,45 @@ export class ExportService {
     });
 
     return { type: 'zip' as const, stream: zipFile, page: pages[0] };
+  }
+
+  /**
+   * Recursively serialise a page tree into a nested JSON structure where each
+   * node carries its export metadata, rendered content and children. Used by
+   * the `nozip` export variant.
+   */
+  private async buildTreeWithMetadata(
+    tree: PageExportTree,
+    format: string,
+    parentPageId: string | null,
+    parentPath: string | null = null,
+  ): Promise<any[]> {
+    const children = tree[parentPageId] || [];
+    return Promise.all(
+      children.map(async (page) => {
+        const pageTitle = getPageTitle(page.title);
+        const metadata: ExportPageMetadata = {
+          pageId: page.id,
+          slugId: page.slugId,
+          icon: page.icon ?? null,
+          position: page.position,
+          parentPath,
+          createdAt: page.createdAt?.toISOString() ?? new Date().toISOString(),
+          updatedAt: page.updatedAt?.toISOString() ?? new Date().toISOString(),
+        };
+        return {
+          ...page,
+          metadata,
+          content: await this.exportPage(format, page, true),
+          children: await this.buildTreeWithMetadata(
+            tree,
+            format,
+            page.id,
+            pageTitle,
+          ),
+        };
+      }),
+    );
   }
 
   async exportSpace(
