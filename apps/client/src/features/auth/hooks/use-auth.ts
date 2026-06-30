@@ -48,7 +48,14 @@ export default function useAuth() {
       } else if (response?.requiresMfaSetup) {
         navigate(APP_ROUTE.AUTH.MFA_SETUP_REQUIRED + window.location.search);
       } else {
-        navigate(getPostLoginRedirect());
+        // Auth-proxy flow takes precedence: restore the URL stored before login.
+        const originalPage = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith("originalPage="))
+          ?.split("=")[1];
+
+        if (originalPage) window.location.href = originalPage;
+        else navigate(getPostLoginRedirect());
       }
     } catch (err) {
       setIsLoading(false);
