@@ -73,9 +73,6 @@ function redirectToLogin() {
     "/invites",
   ];
   if (!exemptPaths.some((path) => window.location.pathname.startsWith(path))) {
-    // Auth-proxy flow: remember the full original URL in a cookie so the login
-    // hooks can restore it after the proxy authenticates the user.
-    document.cookie = `originalPage=${window.location.href}; path=/`;
     // Preserve the full deep link (search + hash, e.g. heading anchors) so the
     // user lands exactly where they were after logging in.
     const redirectTo =
