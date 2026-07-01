@@ -87,6 +87,9 @@ export class AuthService {
     user.lastLoginAt = new Date();
     await this.userRepo.updateLastLogin(user.id, workspaceId);
 
+    // Login runs before the JWT guard, so the audit actor isn't set from the
+    // request yet — set it explicitly so the log shows who logged in.
+    this.auditService.setActorId(user.id);
     this.auditService.log({
       event: AuditEvent.USER_LOGIN,
       resourceType: AuditResource.USER,

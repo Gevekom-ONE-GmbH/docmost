@@ -4,7 +4,7 @@ import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { InsertableAudit } from '@docmost/db/types/entity.types';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
 import { executeWithCursorPagination } from '@docmost/db/pagination/cursor-pagination';
-import { ExpressionBuilder } from 'kysely';
+import { ExpressionBuilder, sql } from 'kysely';
 import { DB } from '@docmost/db/types/db';
 import { jsonObjectFrom } from 'kysely/helpers/postgres';
 
@@ -25,11 +25,8 @@ export class AuditRepo {
     await this.db.insertInto('audit').values(data).execute();
   }
 
-  async getWorkspaceAuditPaginated(
-    workspaceId: string,
-    pagination: PaginationOptions,
-  ) {
-    const query = this.db
+  private baseQuery(workspaceId: string, query?: string) {
+    let q = this.db
       .selectFrom('audit')
       .select([
         'id',
@@ -48,12 +45,53 @@ export class AuditRepo {
       .select((eb) => this.withActor(eb))
       .where('workspaceId', '=', workspaceId);
 
-    return executeWithCursorPagination(query, {
-      perPage: pagination.limit,
-      cursor: pagination.cursor,
-      beforeCursor: pagination.beforeCursor,
-      fields: [{ expression: 'id', direction: 'desc' }],
-      parseCursor: (c) => ({ id: c.id }),
-    });
+    const term = query?.trim();
+    if (term) {
+      const like = `%${term}%`;
+      q = q.where((eb) =>
+        eb.or([
+          eb('event', 'ilike', like),
+          eb('resourceType', 'ilike', like),
+          eb(sql`host(audit.ip_address)`, 'ilike', like),
+          eb(
+            'actorId',
+            'in',
+            eb
+              .selectFrom('users')
+              .select('users.id')
+              .where('users.name', 'ilike', like),
+          ),
+        ]),
+      );
+    }
+    return q;
+  }
+
+  async getWorkspaceAuditPaginated(
+    workspaceId: string,
+    pagination: PaginationOptions,
+  ) {
+    return executeWithCursorPagination(
+      this.baseQuery(workspaceId, pagination.query),
+      {
+        perPage: pagination.limit,
+        cursor: pagination.cursor,
+        beforeCursor: pagination.beforeCursor,
+        fields: [{ expression: 'id', direction: 'desc' }],
+        parseCursor: (c) => ({ id: c.id }),
+      },
+    );
+  }
+
+  /** Fetch rows for CSV export (capped) applying the same search filter. */
+  async getWorkspaceAuditForExport(
+    workspaceId: string,
+    query?: string,
+    limit = 10000,
+  ) {
+    return this.baseQuery(workspaceId, query)
+      .orderBy('id', 'desc')
+      .limit(limit)
+      .execute();
   }
 }

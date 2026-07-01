@@ -8,3 +8,13 @@ export async function getAuditLogs(
   const req = await api.post("/audit", { ...params });
   return req.data;
 }
+
+export async function exportAuditCsv(query?: string): Promise<Blob> {
+  const res = await api.post(
+    "/audit/export",
+    { query },
+    { responseType: "blob" },
+  );
+  // api interceptor returns response.data (the Blob) for non-exempt endpoints
+  return res as unknown as Blob;
+}

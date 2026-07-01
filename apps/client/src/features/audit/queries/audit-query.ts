@@ -1,13 +1,15 @@
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { getAuditLogs } from "@/features/audit/services/audit-service";
-import { IAuditLog } from "@/features/audit/types/audit.types";
-import { IPagination, QueryParams } from "@/lib/types.ts";
 
-export function useAuditLogsQuery(
-  params?: QueryParams,
-): UseQueryResult<IPagination<IAuditLog>, Error> {
-  return useQuery({
-    queryKey: ["audit-logs", params],
-    queryFn: () => getAuditLogs(params),
+export function useAuditLogsInfiniteQuery(query?: string) {
+  return useInfiniteQuery({
+    queryKey: ["audit-logs", query ?? ""],
+    queryFn: ({ pageParam }) =>
+      getAuditLogs({ limit: 50, query, cursor: pageParam as string }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.hasNextPage
+        ? (lastPage.meta.nextCursor ?? undefined)
+        : undefined,
   });
 }
