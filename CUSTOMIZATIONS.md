@@ -151,13 +151,19 @@ abgeleitet (Schwelle 14 Tage); Ablauf-**Benachrichtigungen** per Cron sind nicht
 **Routen:** `POST /pages/(verification-info|create-verification|update-verification|delete-verification|verify|submit-for-approval|reject-approval|mark-obsolete|verifications)`. Interaktive Notifications (verified / approval-requested / -rejected) werden in die `NOTIFICATION_QUEUE` eingereiht (Kern-Prozessor verarbeitet sie).
 
 **Client — neue Dateien:**
-- `apps/client/src/features/page-verification/` (service, queries, types, `components/page-verification-modal.tsx`)
+- `apps/client/src/features/page-verification/` (service, queries, types, `components/page-verification-modal.tsx`, `components/page-verification-badge.tsx`)
 - `apps/client/src/pages/settings/workspace/verified-pages.tsx`
 
 **Client — Touch-Points:**
 - `features/page/components/header/page-header-menu.tsx`: Menüpunkt „Verification" (Icon `IconShieldCheck`) + eigenes `PageVerificationModal` statt der EE-Komponenten (`PageVerificationMenuItem`/`PageVerificationModal` aus `@/ee/page-verification`)
+- `features/editor/full-editor.tsx`: der **Shield-Badge an der Byline** — Import `PageVerificationBadge` zeigt auf `@/features/page-verification/components/page-verification-badge` statt `@/ee/page-verification` (die EE-Badge war lizenz-gegated → „Available with a paid license")
 - `App.tsx`: Import `VerifiedPages` zeigt auf `@/pages/settings/...` statt `@/ee/page-verification/...`
 - `components/settings/settings-sidebar.tsx`: `feature: Feature.PAGE_VERIFICATION` beim Eintrag „Verified pages" entfernt
+
+**Wo die Flows anpassbar sind:**
+- **Statusfluss / Ablauf-Logik (Server):** `apps/server/src/core/page/page-verification/page-verification.service.ts` — Status-Übergänge, `computeExpiresAt()` (Period/Fixed/Indefinite) und `EXPIRING_THRESHOLD_DAYS` (Vorwarn-Fenster, aktuell 14 Tage).
+- **UI-Optionen (Typen, Ablaufmodi, Perioden-Einheiten):** `apps/client/src/features/page-verification/components/page-verification-modal.tsx` (Setup-Formular) und die Enums in `.../types/page-verification.types.ts`.
+- **Berechtigungen (wer darf verifizieren/verwalten):** `page-verification.service.ts` (`assertCanManage`, verify/reject-Checks).
 
 ---
 
