@@ -56,6 +56,22 @@ export class TokenService {
     return this.jwtService.sign(payload, { expiresIn });
   }
 
+  generateApiKeyToken(
+    userId: string,
+    workspaceId: string,
+    apiKeyId: string,
+  ): string {
+    const payload: JwtApiKeyPayload = {
+      sub: userId,
+      workspaceId,
+      apiKeyId,
+      type: JwtType.API_KEY,
+    };
+    // API keys are long-lived; actual expiry and revocation are enforced
+    // against the api_keys table in JwtStrategy, not via the JWT `exp` claim.
+    return this.jwtService.sign(payload, { expiresIn: '3650d' });
+  }
+
   async generateExchangeToken(
     userId: string,
     workspaceId: string,
