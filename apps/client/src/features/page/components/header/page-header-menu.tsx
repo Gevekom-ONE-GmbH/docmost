@@ -9,6 +9,7 @@ import {
   IconHistory,
   IconLink,
   IconList,
+  IconLock,
   IconMarkdown,
   IconMessage,
   IconPrinter,
@@ -42,6 +43,7 @@ import {
 import { formattedDate } from "@/lib/time.ts";
 import { PageEditModeToggle } from "@/features/user/components/page-state-pref.tsx";
 import MovePageModal from "@/features/page/components/move-page-modal.tsx";
+import PagePermissionModal from "@/features/page-permission/components/page-permission-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import {
   PageVerificationMenuItem,
@@ -152,6 +154,10 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
     verificationOpened,
     { open: openVerificationModal, close: closeVerificationModal },
   ] = useDisclosure(false);
+  const [
+    permissionOpened,
+    { open: openPermissionModal, close: closePermissionModal },
+  ] = useDisclosure(false);
   const [pageEditor] = useAtom(pageEditorAtom);
   const pageUpdatedAt = useTimeAgo(page?.updatedAt);
   const favoriteIds = useFavoriteIds("page", page?.spaceId);
@@ -236,6 +242,13 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             onClick={handleCopyAsMarkdown}
           >
             {t("Copy as Markdown")}
+          </Menu.Item>
+
+          <Menu.Item
+            leftSection={<IconLock size={16} />}
+            onClick={openPermissionModal}
+          >
+            {t("Permissions")}
           </Menu.Item>
 
           <Menu.Item
@@ -383,6 +396,12 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
         pageId={page.id}
         opened={verificationOpened}
         onClose={closeVerificationModal}
+      />
+
+      <PagePermissionModal
+        pageId={page.id}
+        opened={permissionOpened}
+        onClose={closePermissionModal}
       />
     </>
   );
