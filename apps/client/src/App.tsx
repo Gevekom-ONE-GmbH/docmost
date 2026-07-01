@@ -45,7 +45,7 @@ import UserApiKeys from "@/pages/settings/account/user-api-keys";
 import WorkspaceApiKeys from "@/pages/settings/workspace/workspace-api-keys";
 import AiSettings from "@/ee/ai/pages/ai-settings.tsx";
 import AuditLogs from "@/pages/settings/workspace/audit-logs.tsx";
-import VerifiedPages from "@/ee/page-verification/pages/verified-pages.tsx";
+import VerifiedPages from "@/pages/settings/workspace/verified-pages.tsx";
 import TemplateList from "@/ee/template/pages/template-list";
 import TemplateEditor from "@/ee/template/pages/template-editor";
 import FavoritesPage from "@/pages/favorites/favorites-page";

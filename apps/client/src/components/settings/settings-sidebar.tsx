@@ -101,7 +101,6 @@ const groupedData: DataGroup[] = [
         label: "Verified pages",
         icon: IconShieldCheck,
         path: "/settings/verifications",
-        feature: Feature.PAGE_VERIFICATION,
       },
       {
         label: "API management",

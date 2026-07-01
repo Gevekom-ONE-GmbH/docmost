@@ -13,6 +13,7 @@ import {
   IconMarkdown,
   IconMessage,
   IconPrinter,
+  IconShieldCheck,
   IconStar,
   IconStarFilled,
   IconTrash,
@@ -45,10 +46,7 @@ import { PageEditModeToggle } from "@/features/user/components/page-state-pref.t
 import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import PagePermissionModal from "@/features/page-permission/components/page-permission-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
-import {
-  PageVerificationMenuItem,
-  PageVerificationModal,
-} from "@/ee/page-verification";
+import PageVerificationModal from "@/features/page-verification/components/page-verification-modal.tsx";
 import {
   useFavoriteIds,
   useAddFavoriteMutation,
@@ -296,10 +294,12 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
           </Menu.Item>
 
           {!readOnly && (
-            <PageVerificationMenuItem
-              pageId={page?.id}
+            <Menu.Item
+              leftSection={<IconShieldCheck size={16} />}
               onClick={openVerificationModal}
-            />
+            >
+              {t("Verification")}
+            </Menu.Item>
           )}
 
           <Menu.Divider />
