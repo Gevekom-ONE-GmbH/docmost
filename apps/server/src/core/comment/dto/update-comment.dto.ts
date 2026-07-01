@@ -1,4 +1,4 @@
-import { IsJSON, IsUUID } from 'class-validator';
+import { IsBoolean, IsJSON, IsUUID } from 'class-validator';
 
 export class UpdateCommentDto {
   @IsUUID()
@@ -6,4 +6,12 @@ export class UpdateCommentDto {
 
   @IsJSON()
   content: any;
+}
+
+export class ResolveCommentDto {
+  @IsUUID()
+  commentId: string;
+
+  @IsBoolean()
+  resolved: boolean;
 }

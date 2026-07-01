@@ -198,6 +198,24 @@ signiert den Body mit HMAC-SHA256 (`X-Docmost-Signature: sha256=…`) und sendet
 - `App.tsx`: Route `/settings/webhooks`
 - `components/settings/settings-sidebar.tsx`: Eintrag „Webhooks" (Workspace, role admin)
 
+### B7) Resolve Comments (EE-Feature)
+
+Die `comments`-Tabelle (`resolved_at`, `resolved_by_id`), der Client-Service
+`resolveComment` und das Resolve-Menü existieren bereits im Kern — Letzteres war
+per `useHasFeature(Feature.COMMENT_RESOLUTION)` deaktiviert, die Mutation lag im EE,
+und die **Backend-Route `/comments/resolve` fehlte**.
+
+**Server — Touch-Points:**
+- `core/comment/dto/update-comment.dto.ts`: `ResolveCommentDto`
+- `core/comment/comment.service.ts`: `resolveComment()` (setzt/leert `resolvedAt`/`resolvedById`,
+  emittiert WS-Event, Audit `comment.resolved`/`comment.reopened`); `AUDIT_SERVICE` injiziert
+- `core/comment/comment.controller.ts`: `POST /comments/resolve` (nur Parent-Kommentare, `validateCanComment`)
+
+**Client — Touch-Points:**
+- `features/comment/queries/comment-query.ts`: eigene `useResolveCommentMutation` (optimistisch), statt EE
+- `features/comment/components/comment-list-item.tsx`: Import auf die Kern-Mutation umgebogen
+- `features/comment/components/comment-menu.tsx`: `canResolve = true` (Feature-Gate entfernt)
+
 ## Hinweise zur Backend-API (native Docmost-Features)
 
 Kein Fork-Code, aber für die Backend-Integration relevant:
