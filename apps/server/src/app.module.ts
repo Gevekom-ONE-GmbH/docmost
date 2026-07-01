@@ -25,7 +25,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import KeyvRedis from '@keyv/redis';
 import { LoggerModule } from './common/logger/logger.module';
 import { ClsModule } from 'nestjs-cls';
-import { NoopAuditModule } from './integrations/audit/audit.module';
+import { AuditLogModule } from './integrations/audit/audit-log.module';
 import { ThrottleModule } from './integrations/throttle/throttle.module';
 
 const enterpriseModules = [];
@@ -49,7 +49,7 @@ try {
       middleware: { mount: true },
     }),
     LoggerModule,
-    NoopAuditModule,
+    AuditLogModule,
     CoreModule,
     DatabaseModule,
     EnvironmentModule,
