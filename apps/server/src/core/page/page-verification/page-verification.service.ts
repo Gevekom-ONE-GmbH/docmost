@@ -1,12 +1,18 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import {
+  AUDIT_SERVICE,
+  IAuditService,
+} from '../../../integrations/audit/audit.service';
+import { AuditEvent, AuditResource } from '../../../common/events/audit-events';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { PageVerificationRepo } from '@docmost/db/repos/page/page-verification.repo';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
@@ -44,7 +50,17 @@ export class PageVerificationService {
     private readonly pageAccessService: PageAccessService,
     @InjectQueue(QueueName.NOTIFICATION_QUEUE)
     private readonly notificationQueue: Queue,
+    @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
+
+  private logAudit(event: string, page: any) {
+    this.auditService.log({
+      event: event as any,
+      resourceType: AuditResource.PAGE,
+      resourceId: page.id,
+      spaceId: page.spaceId,
+    });
+  }
 
   private async getPageOrThrow(pageId: string) {
     const page = await this.pageRepo.findById(pageId);
@@ -226,6 +242,13 @@ export class PageVerificationService {
       );
     }
 
+    this.logAudit(
+      existing
+        ? AuditEvent.PAGE_VERIFICATION_UPDATED
+        : AuditEvent.PAGE_VERIFICATION_CREATED,
+      page,
+    );
+
     return this.getInfo(dto.pageId, user);
   }
 
@@ -237,6 +260,7 @@ export class PageVerificationService {
     const page = await this.getPageOrThrow(pageId);
     await this.assertCanManage(page, user);
     await this.verificationRepo.deleteByPageId(pageId);
+    this.logAudit(AuditEvent.PAGE_VERIFICATION_REMOVED, page);
     return this.getInfo(pageId, user);
   }
 
@@ -279,6 +303,7 @@ export class PageVerificationService {
       actorId: user.id,
       verifierIds,
     });
+    this.logAudit(AuditEvent.PAGE_VERIFIED, page);
 
     return this.getInfo(pageId, user);
   }
@@ -318,6 +343,7 @@ export class PageVerificationService {
       actorId: user.id,
       verifierIds,
     });
+    this.logAudit(AuditEvent.PAGE_APPROVAL_REQUESTED, page);
 
     return this.getInfo(pageId, user);
   }
@@ -352,6 +378,7 @@ export class PageVerificationService {
         comment,
       });
     }
+    this.logAudit(AuditEvent.PAGE_APPROVAL_REJECTED, page);
 
     return this.getInfo(pageId, user);
   }
@@ -366,6 +393,7 @@ export class PageVerificationService {
       { status: VerificationStatus.OBSOLETE },
       v.id,
     );
+    this.logAudit(AuditEvent.PAGE_MARKED_OBSOLETE, page);
     return this.getInfo(pageId, user);
   }
 
