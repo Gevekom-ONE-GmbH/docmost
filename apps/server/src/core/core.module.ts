@@ -24,6 +24,7 @@ import { WatcherModule } from './watcher/watcher.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { SessionModule } from './session/session.module';
 import { ApiKeyModule } from './api-key/api-key.module';
+import { PagePermissionModule } from './page/page-permission/page-permission.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -46,6 +47,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     WatcherModule,
     SessionModule,
     ApiKeyModule,
+    PagePermissionModule,
   ],
 })
 export class CoreModule implements NestModule {
