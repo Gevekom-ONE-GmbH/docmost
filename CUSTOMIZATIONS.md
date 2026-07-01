@@ -231,6 +231,10 @@ Kein Fork-Code, aber für die Backend-Integration relevant:
 
 ## CI / Docker-Image
 
+Der geerbte Upstream-Workflow `.github/workflows/release.yml` (Docmosts eigene
+Release-Pipeline, triggert ebenfalls auf `v*` und schlägt in unserem Fork fehl)
+wurde **entfernt**. Bei künftigen Upstream-Merges ggf. erneut entfernen.
+
 `.github/workflows/build-image.yml` baut & published das Image bei jedem
 **Version-Tag `v*`** (oder manuell via workflow_dispatch) nach GHCR:
 `ghcr.io/gevekom-one-gmbh/docmost-gevekom:<version>` (+ `:latest`). Die Version
