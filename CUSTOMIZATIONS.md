@@ -229,6 +229,15 @@ Kein Fork-Code, aber für die Backend-Integration relevant:
 - **Audit-Log:** `POST /api/audit` (Suche via `query`, Cursor-Pagination) und
   `POST /api/audit/export` (CSV) — nur Workspace-Owner/Admin.
 
+## CI / Docker-Image
+
+`.github/workflows/build-image.yml` baut & published das Image bei jedem
+**Version-Tag `v*`** (oder manuell via workflow_dispatch) nach GHCR:
+`ghcr.io/gevekom-one-gmbh/docmost-gevekom:<version>` (+ `:latest`). Die Version
+wird aus dem Tag abgeleitet (`v0.90.1` → `0.90.1`). Nutzt den eingebauten
+`GITHUB_TOKEN` (keine zusätzlichen Secrets). Release also z. B. via
+`git tag v0.90.1 && git push origin v0.90.1`.
+
 ## Lokale Testumgebung
 
 - Image bauen: `docker build -t docmost-gevekom:<version> .`
