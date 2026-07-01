@@ -77,6 +77,7 @@ Filterung in Suche/Export/Favoriten). Nachgebaut wurde nur die **Management-API 
 
 **Server — Touch-Points:**
 - `core/core.module.ts`: `PagePermissionModule` in `imports`
+- `page-permission.service.ts`: schreibt Audit-Events (`page.restricted`, `page.restriction_removed`, `page.permission_added`, `page.permission_removed`) via `AUDIT_SERVICE`
 
 **Client — neue Dateien:**
 - `apps/client/src/features/page-permission/` (service, queries, types, `components/page-permission-modal.tsx`)
@@ -166,6 +167,19 @@ abgeleitet (Schwelle 14 Tage); Ablauf-**Benachrichtigungen** per Cron sind nicht
 - **Berechtigungen (wer darf verifizieren/verwalten):** `page-verification.service.ts` (`assertCanManage`, verify/reject-Checks).
 
 ---
+
+## Hinweise zur Backend-API (native Docmost-Features)
+
+Kein Fork-Code, aber für die Backend-Integration relevant:
+
+- **Seiten-Content aktualisieren:** `POST /api/pages/update` mit
+  `{ pageId, content, format: 'markdown'|'html'|'json', operation: 'replace'|'append'|'prepend' }`.
+  Der Content wird über die Collaboration-Gateway (Yjs) aktualisiert, bleibt also
+  mit der Live-Bearbeitung konsistent. (`title`/`icon` optional im selben Call.)
+- **Seiten anlegen:** `POST /api/pages/import` (multipart, `spaceId` + `file`) — oder
+  `POST /api/pages/create`.
+- **Audit-Log:** `POST /api/audit` (Suche via `query`, Cursor-Pagination) und
+  `POST /api/audit/export` (CSV) — nur Workspace-Owner/Admin.
 
 ## Lokale Testumgebung
 

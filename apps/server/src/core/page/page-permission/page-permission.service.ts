@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,6 +9,11 @@ import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { PagePermissionRepo } from '@docmost/db/repos/page/page-permission.repo';
 import { PageAccessService } from '../page-access/page-access.service';
 import { User } from '@docmost/db/types/entity.types';
+import {
+  AUDIT_SERVICE,
+  IAuditService,
+} from '../../../integrations/audit/audit.service';
+import { AuditEvent, AuditResource } from '../../../common/events/audit-events';
 import {
   AddPagePermissionDto,
   ListPagePermissionsDto,
@@ -21,7 +28,17 @@ export class PagePermissionService {
     private readonly pageRepo: PageRepo,
     private readonly pagePermissionRepo: PagePermissionRepo,
     private readonly pageAccessService: PageAccessService,
+    @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
+
+  private logAudit(event: string, page: any) {
+    this.auditService.log({
+      event: event as any,
+      resourceType: AuditResource.PAGE,
+      resourceId: page.id,
+      spaceId: page.spaceId,
+    });
+  }
 
   private async getPageOrThrow(pageId: string) {
     const page = await this.pageRepo.findById(pageId);
@@ -125,6 +142,7 @@ export class PagePermissionService {
     const page = await this.getPageOrThrow(pageId);
     await this.pageAccessService.validateCanEdit(page, user);
     await this.ensureRestricted(page, user);
+    this.logAudit(AuditEvent.PAGE_RESTRICTED, page);
     return this.getPermissionInfo(pageId, user);
   }
 
@@ -132,6 +150,7 @@ export class PagePermissionService {
     const page = await this.getPageOrThrow(pageId);
     await this.pageAccessService.validateCanEdit(page, user);
     await this.pagePermissionRepo.deletePageAccess(pageId);
+    this.logAudit(AuditEvent.PAGE_RESTRICTION_REMOVED, page);
     return this.getPermissionInfo(pageId, user);
   }
 
@@ -179,6 +198,7 @@ export class PagePermissionService {
     }
 
     await this.pagePermissionRepo.insertPagePermissions(toInsert);
+    this.logAudit(AuditEvent.PAGE_PERMISSION_ADDED, page);
     return this.getPermissionInfo(dto.pageId, user);
   }
 
@@ -230,6 +250,7 @@ export class PagePermissionService {
         dto.groupId,
       );
     }
+    this.logAudit(AuditEvent.PAGE_PERMISSION_REMOVED, page);
     return this.getPermissionInfo(dto.pageId, user);
   }
 
