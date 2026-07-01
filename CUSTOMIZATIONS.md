@@ -168,6 +168,36 @@ abgeleitet (Schwelle 14 Tage); Ablauf-**Benachrichtigungen** per Cron sind nicht
 
 ---
 
+### B6) Webhooks (outbound)
+
+Eigenimplementierung (inspiriert von `russellbrenner/docmost`, aber Clean-Room):
+Docmost sendet HMAC-signierte HTTP-POSTs, wenn Events im Workspace passieren.
+
+**Server — neue Dateien:**
+- `apps/server/src/core/webhook/` (controller, service, module, dto)
+- `apps/server/src/database/repos/webhook/webhook.repo.ts`
+- `apps/server/src/database/migrations/20260701T120000-webhooks.ts` (Tabelle `webhooks`)
+
+**Server — Touch-Points:**
+- `core/core.module.ts`: `WebhookModule` in `imports`
+- `database/database.module.ts`: `WebhookRepo` in `providers` **und** `exports`
+- `database/types/db.d.ts` + `entity.types.ts`: `Webhooks`-Interface + Aliase (manuell,
+  da kein Codegen läuft)
+
+**Mechanik:** `WebhookService` lauscht via **expliziter** `@OnEvent(EventName.PAGE_*/SPACE_*/WORKSPACE_*)`
+(kein globaler Wildcard-Umbau am EventEmitter), filtert Webhooks nach abonnierten Events,
+signiert den Body mit HMAC-SHA256 (`X-Docmost-Signature: sha256=…`) und sendet per `fetch`
+(Timeout, best-effort — blockiert nie den auslösenden Request). Routen:
+`POST /webhooks(/create|/update|/delete)`, `GET /webhooks/events` (Admin-only).
+
+**Client — neue Dateien:**
+- `apps/client/src/features/webhook/` (service, queries, types, `components/create-webhook-modal.tsx`)
+- `apps/client/src/pages/settings/workspace/webhooks.tsx`
+
+**Client — Touch-Points:**
+- `App.tsx`: Route `/settings/webhooks`
+- `components/settings/settings-sidebar.tsx`: Eintrag „Webhooks" (Workspace, role admin)
+
 ## Hinweise zur Backend-API (native Docmost-Features)
 
 Kein Fork-Code, aber für die Backend-Integration relevant:
