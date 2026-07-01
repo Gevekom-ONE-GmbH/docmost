@@ -37,6 +37,7 @@ import {
   Watchers,
   Audit as _Audit,
   Templates,
+  Webhooks,
 } from './db';
 import { PageEmbeddings } from '@docmost/db/types/embeddings.types';
 
@@ -175,6 +176,10 @@ export type UpdatableUserMFA = Updateable<Omit<_UserMFA, 'id'>>;
 export type ApiKey = Selectable<ApiKeys>;
 export type InsertableApiKey = Insertable<ApiKeys>;
 export type UpdatableApiKey = Updateable<Omit<ApiKeys, 'id'>>;
+
+export type Webhook = Selectable<Webhooks>;
+export type InsertableWebhook = Insertable<Webhooks>;
+export type UpdatableWebhook = Updateable<Omit<Webhooks, 'id'>>;
 
 // Scim Tokens
 export type ScimToken = Selectable<ScimTokens>;

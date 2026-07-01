@@ -42,6 +42,21 @@ export interface ApiKeys {
   workspaceId: string;
 }
 
+export interface Webhooks {
+  id: Generated<string>;
+  name: string | null;
+  url: string;
+  secret: string | null;
+  events: string[];
+  isActive: Generated<boolean>;
+  workspaceId: string;
+  creatorId: string | null;
+  lastTriggeredAt: Timestamp | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+}
+
 export interface Attachments {
   aiChatId: string | null;
   createdAt: Generated<Timestamp>;
@@ -593,6 +608,7 @@ export interface DB {
   aiChats: AiChats;
   aiChatMessages: AiChatMessages;
   apiKeys: ApiKeys;
+  webhooks: Webhooks;
   attachments: Attachments;
   audit: Audit;
   authAccounts: AuthAccounts;
