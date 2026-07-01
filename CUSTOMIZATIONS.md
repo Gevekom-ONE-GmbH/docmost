@@ -109,7 +109,24 @@ Nachgebaut: echter Persistenz-Service + List-API + UI.
 
 ### B4) Space Settings → Security
 
-*(folgt — dieses Dokument wird ergänzt)*
+Backend (DTO, `space.service` schreibt `settings.sharing.disabled` /
+`settings.comments.allowViewerComments`, Enforcement in `page-access.service` /
+Share-Logik) sowie der Security-**Tab** liegen bereits im Kern. Der Tab ist nur an
+Space-Admin gebunden (kein Feature-Flag). Nachgebaut wurden nur die zwei Toggles
+(waren im EE ausgegraut) **und** die Entfernung eines Lizenz-Gates im Kern-Backend.
+
+**Server — Touch-Point (wichtig!):**
+- `core/space/services/space.service.ts` → `updateSpace()`: der Lizenz-Check-Block für
+  `disablePublicSharing` / `allowViewerComments` (`licenseCheckService.hasFeature(... SECURITY_SETTINGS / VIEWER_COMMENTS ...)` → `ForbiddenException('This feature requires a valid license')`) wurde **entfernt**. Ohne diese Entfernung liefert `/spaces/update` für diese Felder 403.
+
+**Client — neue Dateien:**
+- `apps/client/src/features/space/components/security/space-public-sharing-toggle.tsx`
+- `apps/client/src/features/space/components/security/space-viewer-comments-toggle.tsx`
+  (Clean-Room-Kopien ohne `useHasFeature`-Gate)
+
+**Client — Touch-Point:**
+- `features/space/components/space-security-settings.tsx`: Importe zeigen auf die neuen
+  Toggles unter `@/features/space/components/security/` statt `@/ee/security/components/`
 
 ### B5) Page-Verifications (voller Approval-Workflow)
 
