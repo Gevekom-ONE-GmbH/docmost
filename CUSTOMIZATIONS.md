@@ -130,7 +130,27 @@ Space-Admin gebunden (kein Feature-Flag). Nachgebaut wurden nur die zwei Toggles
 
 ### B5) Page-Verifications (voller Approval-Workflow)
 
-*(folgt — dieses Dokument wird ergänzt)*
+DB-Tabellen (`page_verifications`, `page_verifiers`) + der Kern-Notification-Service
+(`verification.notification.ts`, verarbeitet Queue-Jobs) liegen im Kern. Nachgebaut:
+Repo, Service (Status-Statemachine), Controller. Der periodische Ablauf-Reconcile
+hängt an einem EE-Scheduler → Ablauf-Status wird stattdessen beim Lesen aus `expires_at`
+abgeleitet (Schwelle 14 Tage); Ablauf-**Benachrichtigungen** per Cron sind nicht dabei.
+
+**Statusfluss:** `expiring`-Typ: (none) → `verified` → abgeleitet `expiring`/`expired`.
+`qms`-Typ: `draft` → `in_approval` (submit) → `verified` (verify) bzw. zurück zu `draft`
+(reject) → `obsolete`.
+
+**Server — neue Dateien:**
+- `apps/server/src/core/page/page-verification/` (controller, service, module, dto)
+- `apps/server/src/database/repos/page/page-verification.repo.ts`
+
+**Server — Touch-Points:**
+- `core/core.module.ts`: `PageVerificationModule` in `imports`
+- `database/database.module.ts`: `PageVerificationRepo` in `providers` **und** `exports`
+
+**Routen:** `POST /pages/(verification-info|create-verification|update-verification|delete-verification|verify|submit-for-approval|reject-approval|mark-obsolete|verifications)`. Interaktive Notifications (verified / approval-requested / -rejected) werden in die `NOTIFICATION_QUEUE` eingereiht (Kern-Prozessor verarbeitet sie).
+
+**Client:** *(UI-Etappe folgt — Modal im Page-Header + „Verified pages"-Übersicht)*
 
 ---
 
