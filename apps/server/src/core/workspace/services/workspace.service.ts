@@ -345,13 +345,8 @@ export class WorkspaceService {
         throw new NotFoundException('Workspace not found');
       }
 
-      if (typeof updateWorkspaceDto.mcpEnabled !== 'undefined') {
-        if (!this.licenseCheckService.hasFeature(ws.licenseKey, 'mcp', ws.plan)) {
-          throw new ForbiddenException(
-            'This feature requires a valid license',
-          );
-        }
-      }
+      // Gevekom: MCP is provided by the clean-room core MCP server, not the EE
+      // module, so no license check is required to enable it.
 
       if (typeof updateWorkspaceDto.isScimEnabled !== 'undefined') {
         if (!this.licenseCheckService.hasFeature(ws.licenseKey, Feature.SCIM, ws.plan)) {
