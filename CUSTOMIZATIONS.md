@@ -232,7 +232,7 @@ Wiki-Inhalt zugreifen. Clean-Room, kein EE-Code; nutzt `@modelcontextprotocol/sd
 **Mechanik:** Streamable-HTTP **stateless** — frischer Server+Transport pro Request, **kein** Session-Store (`sessionIdGenerator: undefined`, `enableJsonResponse`). Läuft damit hinter einem Load-Balancer über **mehrere Instanzen ohne Session-Affinität**. Auth über `JwtAuthGuard`
 → Docmost-**API-Key** als Bearer; Tools sind auf die Rechte des Users beschränkt.
 Tools: `search_pages`, `get_page`, `list_spaces` (read), `create_page`, `update_page`
-(write). Write-Tools werden nur registriert, wenn `MCP_ALLOW_WRITE != 'false'`
+(write). Optionales **Space-Scoping** über `?space=<id|slug>` (Suche/Anlegen laufen dann in diesem Space). `get_page` löst Autor/letzten Bearbeiter zu **Namen** auf; das Tool **`get_users`** löst beliebige User-UUIDs → Namen/E-Mail auf. Write-Tools werden nur registriert, wenn `MCP_ALLOW_WRITE != 'false'`
 (Env-Kill-Switch). Aktivierung pro Workspace über das vorhandene `mcpEnabled`-Setting.
 
 **Client — neue Dateien:**

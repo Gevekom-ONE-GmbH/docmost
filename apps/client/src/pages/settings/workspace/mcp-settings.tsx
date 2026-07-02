@@ -106,7 +106,12 @@ export default function McpSettings() {
           </Text>
           <Text size="sm" mt="xs">
             {t(
-              "Tools: search_pages, get_page, list_spaces (read) and create_page, update_page (write). Write tools can be disabled server-side via the MCP_ALLOW_WRITE=false environment variable.",
+              "Tools: search_pages, get_page, list_spaces, get_users (read) and create_page, update_page (write). Write tools can be disabled server-side via the MCP_ALLOW_WRITE=false environment variable.",
+            )}
+          </Text>
+          <Text size="sm" mt="xs">
+            {t(
+              "Tip: scope a connection to one space by appending ?space=<slug-or-id> to the URL.",
             )}
           </Text>
         </Alert>

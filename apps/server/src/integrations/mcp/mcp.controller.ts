@@ -26,11 +26,12 @@ import { User, Workspace } from '@docmost/db/types/entity.types';
 export class McpController {
   constructor(private readonly mcpService: McpService) {}
 
-  private context(user: User, workspace: Workspace) {
+  private context(user: User, workspace: Workspace, spaceParam?: string) {
     return {
       user,
       workspace,
       writeEnabled: process.env.MCP_ALLOW_WRITE !== 'false',
+      spaceParam,
     };
   }
 
@@ -50,11 +51,12 @@ export class McpController {
       res.status(403).send({ error: 'MCP is not enabled for this workspace' });
       return;
     }
+    const spaceParam = (req.query as any)?.space;
     await this.mcpService.handle(
       req.raw as any,
       res.raw as any,
       body,
-      this.context(user, workspace),
+      this.context(user, workspace, spaceParam),
     );
   }
 
