@@ -229,7 +229,7 @@ Wiki-Inhalt zugreifen. Clean-Room, kein EE-Code; nutzt `@modelcontextprotocol/sd
 - `app.module.ts`: `McpModule` in `imports`
 - `core/workspace/services/workspace.service.ts`: EE-Lizenz-Gate für `mcpEnabled` entfernt
 
-**Mechanik:** Streamable-HTTP (stateful, `mcp-session-id`). Auth über `JwtAuthGuard`
+**Mechanik:** Streamable-HTTP **stateless** — frischer Server+Transport pro Request, **kein** Session-Store (`sessionIdGenerator: undefined`, `enableJsonResponse`). Läuft damit hinter einem Load-Balancer über **mehrere Instanzen ohne Session-Affinität**. Auth über `JwtAuthGuard`
 → Docmost-**API-Key** als Bearer; Tools sind auf die Rechte des Users beschränkt.
 Tools: `search_pages`, `get_page`, `list_spaces` (read), `create_page`, `update_page`
 (write). Write-Tools werden nur registriert, wenn `MCP_ALLOW_WRITE != 'false'`

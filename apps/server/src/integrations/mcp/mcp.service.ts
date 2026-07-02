@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { randomUUID } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { z } from 'zod';
 import { InjectKysely } from 'nestjs-kysely';
@@ -33,16 +32,12 @@ export class McpService {
 
   private readonly logger = new Logger(McpService.name);
   // Active MCP sessions (single-instance, in-memory).
-  private readonly transports = new Map<string, any>();
-  private readonly owners = new Map<string, string>();
-
-  private isInitialize(body: any): boolean {
-    const has = (m: any) => m && m.method === 'initialize';
-    return Array.isArray(body) ? body.some(has) : has(body);
-  }
-
-  /** Handle an MCP POST (JSON-RPC), managing the session lifecycle. */
-  async handlePost(
+  /**
+   * Stateless MCP handling: a fresh McpServer + transport per request, no
+   * session store. Works behind any load balancer / across instances without
+   * session affinity, since no state is kept between requests.
+   */
+  async handle(
     req: IncomingMessage,
     res: ServerResponse,
     body: any,
@@ -51,70 +46,21 @@ export class McpService {
     const { StreamableHTTPServerTransport } = await import(
       '@modelcontextprotocol/sdk/server/streamableHttp.js'
     );
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-
-    let transport: any;
-    if (sessionId && this.transports.has(sessionId)) {
-      if (this.owners.get(sessionId) !== ctx.user.id) {
-        return this.reject(res, 403, 'Session belongs to another user');
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+    const server = await this.buildServer(ctx);
+    res.on('close', () => {
+      try {
+        void transport.close();
+        void server.close();
+      } catch {
+        // ignore
       }
-      transport = this.transports.get(sessionId);
-    } else if (!sessionId && this.isInitialize(body)) {
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        enableJsonResponse: true,
-        onsessioninitialized: (id: string) => {
-          this.transports.set(id, transport);
-          this.owners.set(id, ctx.user.id);
-        },
-      });
-      transport.onclose = () => {
-        const id = transport.sessionId;
-        if (id) {
-          this.transports.delete(id);
-          this.owners.delete(id);
-        }
-      };
-      const server = await this.buildServer(ctx);
-      await server.connect(transport);
-    } else {
-      return this.reject(
-        res,
-        400,
-        'No valid session; send an initialize request first',
-      );
-    }
-
+    });
+    await server.connect(transport);
     await transport.handleRequest(req, res, body);
-  }
-
-  /** Handle GET (SSE) / DELETE for an existing session. */
-  async handleSessionRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
-    ctx: McpContext,
-  ) {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    if (
-      !sessionId ||
-      !this.transports.has(sessionId) ||
-      this.owners.get(sessionId) !== ctx.user.id
-    ) {
-      return this.reject(res, 400, 'Invalid or missing session id');
-    }
-    await this.transports.get(sessionId).handleRequest(req, res);
-  }
-
-  private reject(res: ServerResponse, status: number, message: string) {
-    res.statusCode = status;
-    res.setHeader('content-type', 'application/json');
-    res.end(
-      JSON.stringify({
-        jsonrpc: '2.0',
-        error: { code: -32000, message },
-        id: null,
-      }),
-    );
   }
 
   private text(data: unknown) {

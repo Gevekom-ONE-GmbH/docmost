@@ -50,7 +50,7 @@ export class McpController {
       res.status(403).send({ error: 'MCP is not enabled for this workspace' });
       return;
     }
-    await this.mcpService.handlePost(
+    await this.mcpService.handle(
       req.raw as any,
       res.raw as any,
       body,
@@ -58,35 +58,28 @@ export class McpController {
     );
   }
 
+  // Stateless mode: no server-initiated SSE stream / session teardown.
   @Get('mcp')
-  async get(
-    @AuthUser() user: User,
-    @AuthWorkspace() workspace: Workspace,
-    @Req() req: FastifyRequest,
-    @Res() res: FastifyReply,
-  ) {
-    if (!this.isEnabled(workspace)) {
-      res.status(403).send({ error: 'MCP is not enabled for this workspace' });
-      return;
-    }
-    await this.mcpService.handleSessionRequest(
-      req.raw as any,
-      res.raw as any,
-      this.context(user, workspace),
-    );
+  get(@Res() res: FastifyReply) {
+    res
+      .status(405)
+      .header('Allow', 'POST')
+      .send({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Method not allowed (stateless MCP; use POST)' },
+        id: null,
+      });
   }
 
   @Delete('mcp')
-  async delete(
-    @AuthUser() user: User,
-    @AuthWorkspace() workspace: Workspace,
-    @Req() req: FastifyRequest,
-    @Res() res: FastifyReply,
-  ) {
-    await this.mcpService.handleSessionRequest(
-      req.raw as any,
-      res.raw as any,
-      this.context(user, workspace),
-    );
+  delete(@Res() res: FastifyReply) {
+    res
+      .status(405)
+      .header('Allow', 'POST')
+      .send({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'Method not allowed (stateless MCP)' },
+        id: null,
+      });
   }
 }
