@@ -1149,5 +1149,13 @@
   "in_approval": "In Freigabe",
   "draft": "Entwurf",
   "obsolete": "Veraltet",
-  "none": "Keine"
+  "none": "Keine",
+  "MCP server": "MCP-Server",
+  "Enable MCP server": "MCP-Server aktivieren",
+  "Let external AI assistants and tools access this workspace over the Model Context Protocol.": "Externen AI-Assistenten und Tools den Zugriff auf diesen Workspace über das Model Context Protocol erlauben.",
+  "Server URL": "Server-URL",
+  "Authenticate with an API key (Bearer token). Create one under": "Authentifiziere dich mit einem API-Schlüssel (Bearer-Token). Erstelle einen unter",
+  "Account → API keys": "Konto → API-Schlüssel",
+  "Tools: search_pages, get_page, list_spaces (read) and create_page, update_page (write). Write tools can be disabled server-side via the MCP_ALLOW_WRITE=false environment variable.": "Tools: search_pages, get_page, list_spaces (lesend) sowie create_page, update_page (schreibend). Schreib-Tools lassen sich serverseitig über die Umgebungsvariable MCP_ALLOW_WRITE=false deaktivieren.",
+  "Failed to update setting": "Einstellung konnte nicht aktualisiert werden"
 }

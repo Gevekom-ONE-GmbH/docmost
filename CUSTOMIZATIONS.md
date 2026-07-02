@@ -216,6 +216,32 @@ und die **Backend-Route `/comments/resolve` fehlte**.
 - `features/comment/components/comment-list-item.tsx`: Import auf die Kern-Mutation umgebogen
 - `features/comment/components/comment-menu.tsx`: `canResolve = true` (Feature-Gate entfernt)
 
+### B8) MCP-Server (Docmost als MCP-Anbieter)
+
+Docmost stellt einen MCP-Server unter **`/mcp`** bereit (vom `/api`-Prefix in
+`main.ts` ausgenommen — `exclude: [... 'mcp']`), damit externe AI-Clients auf den
+Wiki-Inhalt zugreifen. Clean-Room, kein EE-Code; nutzt `@modelcontextprotocol/sdk`.
+
+**Server — neue Dateien:**
+- `apps/server/src/integrations/mcp/` (`mcp.controller.ts`, `mcp.service.ts`, `mcp.module.ts`)
+
+**Server — Touch-Points:**
+- `app.module.ts`: `McpModule` in `imports`
+- `core/workspace/services/workspace.service.ts`: EE-Lizenz-Gate für `mcpEnabled` entfernt
+
+**Mechanik:** Streamable-HTTP (stateful, `mcp-session-id`). Auth über `JwtAuthGuard`
+→ Docmost-**API-Key** als Bearer; Tools sind auf die Rechte des Users beschränkt.
+Tools: `search_pages`, `get_page`, `list_spaces` (read), `create_page`, `update_page`
+(write). Write-Tools werden nur registriert, wenn `MCP_ALLOW_WRITE != 'false'`
+(Env-Kill-Switch). Aktivierung pro Workspace über das vorhandene `mcpEnabled`-Setting.
+
+**Client — neue Dateien:**
+- `apps/client/src/pages/settings/workspace/mcp-settings.tsx` (URL + Enable-Toggle + Hinweise)
+
+**Client — Touch-Points:**
+- `App.tsx`: Route `/settings/mcp`
+- `components/settings/settings-sidebar.tsx`: Eintrag „MCP" (Workspace, role admin)
+
 ## Hinweise zur Backend-API (native Docmost-Features)
 
 Kein Fork-Code, aber für die Backend-Integration relevant:

@@ -16,6 +16,7 @@ import {
   IconHistory,
   IconShieldCheck,
   IconWebhook,
+  IconPlugConnected,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -113,6 +114,12 @@ const groupedData: DataGroup[] = [
         label: "Webhooks",
         icon: IconWebhook,
         path: "/settings/webhooks",
+        role: "admin",
+      },
+      {
+        label: "MCP",
+        icon: IconPlugConnected,
+        path: "/settings/mcp",
         role: "admin",
       },
       {

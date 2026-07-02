@@ -47,6 +47,7 @@ import AiSettings from "@/ee/ai/pages/ai-settings.tsx";
 import AuditLogs from "@/pages/settings/workspace/audit-logs.tsx";
 import VerifiedPages from "@/pages/settings/workspace/verified-pages.tsx";
 import Webhooks from "@/pages/settings/workspace/webhooks.tsx";
+import McpSettings from "@/pages/settings/workspace/mcp-settings.tsx";
 import TemplateList from "@/ee/template/pages/template-list";
 import TemplateEditor from "@/ee/template/pages/template-editor";
 import FavoritesPage from "@/pages/favorites/favorites-page";
@@ -170,6 +171,7 @@ export default function App() {
             <Route path={"audit"} element={<AuditLogs />} />
             <Route path={"verifications"} element={<VerifiedPages />} />
             <Route path={"webhooks"} element={<Webhooks />} />
+            <Route path={"mcp"} element={<McpSettings />} />
             {!isCloud() && <Route path={"license"} element={<License />} />}
             {isCloud() && <Route path={"billing"} element={<Billing />} />}
           </Route>
