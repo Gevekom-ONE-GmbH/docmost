@@ -108,6 +108,8 @@ Nachgebaut: echter Persistenz-Service + List-API + UI.
 
 **Route:** `POST /audit` (nur Workspace-Owner/Admin). `AuditLogService` liest workspace/actor/ip aus dem CLS-`AuditContext`.
 
+**Erweiterungen (Seiten-Nachvollziehbarkeit):** Neue Events `page.moved` (Parent-Wechsel), `page.purged` (Auto-Loeschung durch `TrashCleanupService`, Actor=System, mit Grund/Retention), `page.updated` (Titelaenderung). Reiche Metadaten via `PageAuditService` (`page/services/page-audit.service.ts`): Titel, slugId, spaceId+spaceName, parentPageId, Breadcrumb-Pfad und bei Trash/Delete/Purge die Kaskaden-Descendants (Snapshot VOR dem Loeschen). Space-Delete loggt `pageCount`. Audit-Liste/Export akzeptieren Filter `event`/`resourceType`/`resourceId` (`audit/dto/audit-query.dto.ts`); die UI hat Resource-Typ-Filter, pro-Zeile "alle Ereignisse zu dieser Ressource" (klickbar) und eine Details-Spalte.
+
 ### B4) Space Settings → Security
 
 Backend (DTO, `space.service` schreibt `settings.sharing.disabled` /
