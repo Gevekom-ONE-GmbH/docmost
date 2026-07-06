@@ -25,7 +25,16 @@ export class AuditRepo {
     await this.db.insertInto('audit').values(data).execute();
   }
 
-  private baseQuery(workspaceId: string, query?: string) {
+  private baseQuery(
+    workspaceId: string,
+    filters: {
+      query?: string;
+      event?: string;
+      resourceType?: string;
+      resourceId?: string;
+    } = {},
+  ) {
+    const { query, event, resourceType, resourceId } = filters;
     let q = this.db
       .selectFrom('audit')
       .select([
@@ -64,15 +73,27 @@ export class AuditRepo {
         ]),
       );
     }
+    if (event) q = q.where('event', '=', event);
+    if (resourceType) q = q.where('resourceType', '=', resourceType);
+    if (resourceId) q = q.where('resourceId', '=', resourceId);
     return q;
   }
 
   async getWorkspaceAuditPaginated(
     workspaceId: string,
-    pagination: PaginationOptions,
+    pagination: PaginationOptions & {
+      event?: string;
+      resourceType?: string;
+      resourceId?: string;
+    },
   ) {
     return executeWithCursorPagination(
-      this.baseQuery(workspaceId, pagination.query),
+      this.baseQuery(workspaceId, {
+        query: pagination.query,
+        event: pagination.event,
+        resourceType: pagination.resourceType,
+        resourceId: pagination.resourceId,
+      }),
       {
         perPage: pagination.limit,
         cursor: pagination.cursor,
@@ -83,13 +104,18 @@ export class AuditRepo {
     );
   }
 
-  /** Fetch rows for CSV export (capped) applying the same search filter. */
+  /** Fetch rows for CSV export (capped) applying the same filters. */
   async getWorkspaceAuditForExport(
     workspaceId: string,
-    query?: string,
+    filters: {
+      query?: string;
+      event?: string;
+      resourceType?: string;
+      resourceId?: string;
+    } = {},
     limit = 10000,
   ) {
-    return this.baseQuery(workspaceId, query)
+    return this.baseQuery(workspaceId, filters)
       .orderBy('id', 'desc')
       .limit(limit)
       .execute();

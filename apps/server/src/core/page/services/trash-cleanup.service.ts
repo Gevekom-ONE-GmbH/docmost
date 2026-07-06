@@ -1,10 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { QueueJob, QueueName } from '../../../integrations/queue/constants';
+import { PageAuditService } from './page-audit.service';
+import {
+  AUDIT_SERVICE,
+  IAuditService,
+} from '../../../integrations/audit/audit.service';
+import { AuditEvent, AuditResource } from '../../../common/events/audit-events';
 
 const DEFAULT_RETENTION_DAYS = 30;
 
@@ -15,6 +21,8 @@ export class TrashCleanupService {
   constructor(
     @InjectKysely() private readonly db: KyselyDB,
     @InjectQueue(QueueName.ATTACHMENT_QUEUE) private attachmentQueue: Queue,
+    private readonly pageAudit: PageAuditService,
+    @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
 
   @Interval('trash-cleanup', 24 * 60 * 60 * 1000) // every 24 hours
@@ -46,7 +54,7 @@ export class TrashCleanupService {
 
         for (const page of oldDeletedPages) {
           try {
-            await this.cleanupPage(page.id);
+            await this.cleanupPage(page.id, workspace.id, retentionDays);
             totalCleaned++;
           } catch (error) {
             this.logger.error(
@@ -70,7 +78,15 @@ export class TrashCleanupService {
     }
   }
 
-  private async cleanupPage(pageId: string) {
+  private async cleanupPage(
+    pageId: string,
+    workspaceId: string,
+    retentionDays: number,
+  ) {
+    // Snapshot metadata BEFORE deletion (rows are gone afterwards).
+    const snap = await this.pageAudit.snapshot(pageId);
+    const auditDescendants = await this.pageAudit.descendants(pageId);
+
     // Get all descendants using recursive CTE (including the page itself)
     const descendants = await this.db
       .withRecursive('page_descendants', (db) =>
@@ -116,6 +132,23 @@ export class TrashCleanupService {
     try {
       if (pageIds.length > 0) {
         await this.db.deleteFrom('pages').where('id', 'in', pageIds).execute();
+
+        // Audit the permanent (system) deletion so purged pages leave a trail.
+        this.auditService.logWithContext(
+          {
+            event: AuditEvent.PAGE_PURGED,
+            resourceType: AuditResource.PAGE,
+            resourceId: pageId,
+            spaceId: snap?.spaceId,
+            metadata: {
+              ...(snap ?? {}),
+              reason: `trash retention (${retentionDays}d)`,
+              descendantCount: auditDescendants.count,
+              descendants: auditDescendants.pages,
+            },
+          },
+          { workspaceId, actorType: 'system' },
+        );
       }
     } catch (error) {
       // Log but don't throw - pages might have been deleted by another node

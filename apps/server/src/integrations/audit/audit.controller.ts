@@ -15,7 +15,7 @@ import { AuthUser } from '../../common/decorators/auth-user.decorator';
 import { AuthWorkspace } from '../../common/decorators/auth-workspace.decorator';
 import { User, Workspace } from '@docmost/db/types/entity.types';
 import { UserRole } from '../../common/helpers/types/permission';
-import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
+import { AuditQueryDto } from './dto/audit-query.dto';
 
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -38,28 +38,30 @@ export class AuditController {
   @HttpCode(HttpStatus.OK)
   @Post('audit')
   async list(
-    @Body() pagination: PaginationOptions,
+    @Body() query: AuditQueryDto,
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
   ) {
     this.assertAdmin(user);
-    return this.auditRepo.getWorkspaceAuditPaginated(workspace.id, pagination);
+    return this.auditRepo.getWorkspaceAuditPaginated(workspace.id, query);
   }
 
   @HttpCode(HttpStatus.OK)
   @Post('audit/export')
   async exportCsv(
-    @Body() body: { query?: string },
+    @Body() body: AuditQueryDto,
     @AuthUser() user: User,
     @AuthWorkspace() workspace: Workspace,
     @Res() res: FastifyReply,
   ) {
     this.assertAdmin(user);
 
-    const rows = await this.auditRepo.getWorkspaceAuditForExport(
-      workspace.id,
-      body?.query,
-    );
+    const rows = await this.auditRepo.getWorkspaceAuditForExport(workspace.id, {
+      query: body?.query,
+      event: body?.event,
+      resourceType: body?.resourceType,
+      resourceId: body?.resourceId,
+    });
 
     const header = [
       'Date',

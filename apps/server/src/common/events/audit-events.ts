@@ -57,8 +57,11 @@ export const AuditEvent = {
   PAGE_TRASHED: 'page.trashed',
   PAGE_DELETED: 'page.deleted',
   PAGE_RESTORED: 'page.restored',
+  PAGE_MOVED: 'page.moved',
   PAGE_MOVED_TO_SPACE: 'page.moved_to_space',
   PAGE_DUPLICATED: 'page.duplicated',
+  PAGE_UPDATED: 'page.updated',
+  PAGE_PURGED: 'page.purged',
   // Page permission
   PAGE_RESTRICTED: 'page.restricted',
   PAGE_RESTRICTION_REMOVED: 'page.restriction_removed',

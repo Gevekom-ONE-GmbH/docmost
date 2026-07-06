@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PageService } from './services/page.service';
+import { PageAuditService } from './services/page-audit.service';
 import { BacklinkService } from './services/backlink.service';
 import { PageAccessService } from './page-access/page-access.service';
 import { CreatePageDto } from './dto/create-page.dto';
@@ -64,6 +65,7 @@ export class PageController {
     private readonly pageAccessService: PageAccessService,
     private readonly backlinkService: BacklinkService,
     private readonly labelService: LabelService,
+    private readonly pageAudit: PageAuditService,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
   ) {}
 
@@ -289,6 +291,25 @@ export class PageController {
 
     const permissions = { canEdit: true, hasRestriction };
 
+    // Log title changes (renames) — cheap signal, low noise (content edits go
+    // through the collab layer and are intentionally not audited per keystroke).
+    if (
+      updatePageDto.title !== undefined &&
+      getPageTitle(page.title) !== getPageTitle(updatedPage.title)
+    ) {
+      this.auditService.log({
+        event: AuditEvent.PAGE_UPDATED,
+        resourceType: AuditResource.PAGE,
+        resourceId: page.id,
+        spaceId: page.spaceId,
+        changes: {
+          before: { title: getPageTitle(page.title) },
+          after: { title: getPageTitle(updatedPage.title) },
+        },
+        metadata: { slugId: page.slugId, change: 'title' },
+      });
+    }
+
     if (
       updatePageDto.format &&
       updatePageDto.format !== 'json' &&
@@ -319,6 +340,15 @@ export class PageController {
 
     const ability = await this.spaceAbility.createForUser(user, page.spaceId);
 
+    // Capture rich metadata + cascade victims BEFORE the (cascading) deletion.
+    const snap = await this.pageAudit.snapshot(page.id);
+    const descendants = await this.pageAudit.descendants(page.id);
+    const deleteMeta = {
+      ...(snap ?? {}),
+      descendantCount: descendants.count,
+      descendants: descendants.pages,
+    };
+
     if (deletePageDto.permanentlyDelete) {
       // Permanent deletion requires space admin permissions
       if (ability.cannot(SpaceCaslAction.Manage, SpaceCaslSubject.Settings)) {
@@ -333,14 +363,7 @@ export class PageController {
         resourceType: AuditResource.PAGE,
         resourceId: page.id,
         spaceId: page.spaceId,
-        changes: {
-          before: {
-            pageId: page.id,
-            slugId: page.slugId,
-            title: getPageTitle(page.title),
-            spaceId: page.spaceId,
-          },
-        },
+        metadata: deleteMeta,
       });
     } else {
       // User with edit permission can delete
@@ -357,14 +380,7 @@ export class PageController {
         resourceType: AuditResource.PAGE,
         resourceId: page.id,
         spaceId: page.spaceId,
-        changes: {
-          before: {
-            pageId: page.id,
-            slugId: page.slugId,
-            title: getPageTitle(page.title),
-            spaceId: page.spaceId,
-          },
-        },
+        metadata: deleteMeta,
       });
     }
   }
@@ -391,6 +407,8 @@ export class PageController {
     // make sure they have page level access to the page
     await this.pageAccessService.validateCanEdit(page, user);
 
+    const snap = await this.pageAudit.snapshot(page.id);
+
     await this.pageRepo.restorePage(pageIdDto.pageId, workspace.id);
 
     this.auditService.log({
@@ -398,12 +416,7 @@ export class PageController {
       resourceType: AuditResource.PAGE,
       resourceId: page.id,
       spaceId: page.spaceId,
-      changes: {
-        after: {
-          title: getPageTitle(page.title),
-          spaceId: page.spaceId,
-        },
-      },
+      metadata: { ...(snap ?? {}) },
     });
 
     return this.pageRepo.findById(pageIdDto.pageId, {
@@ -615,6 +628,8 @@ export class PageController {
       },
       metadata: {
         title: getPageTitle(movedPage.title),
+        slugId: movedPage.slugId,
+        parentPageId: movedPage.parentPageId ?? null,
         ...(childPageIds.length > 0 && { childPageIds }),
       },
     });
@@ -733,7 +748,39 @@ export class PageController {
       await this.pageAccessService.validateCanEdit(targetParent, user);
     }
 
-    return this.pageService.movePage(dto, movedPage);
+    const parentChanged =
+      (dto.parentPageId ?? null) !== (movedPage.parentPageId ?? null);
+
+    const result = await this.pageService.movePage(dto, movedPage);
+
+    // Audit only real relocations (parent change); pure reorders are skipped.
+    if (parentChanged) {
+      const snap = await this.pageAudit.snapshot(movedPage.id);
+      this.auditService.log({
+        event: AuditEvent.PAGE_MOVED,
+        resourceType: AuditResource.PAGE,
+        resourceId: movedPage.id,
+        spaceId: movedPage.spaceId,
+        changes: {
+          before: {
+            parentPageId: movedPage.parentPageId ?? null,
+            position: movedPage.position,
+          },
+          after: {
+            parentPageId: dto.parentPageId ?? null,
+            position: dto.position,
+          },
+        },
+        metadata: {
+          title: getPageTitle(movedPage.title),
+          slugId: movedPage.slugId,
+          spaceId: movedPage.spaceId,
+          newPath: snap?.path,
+        },
+      });
+    }
+
+    return result;
   }
 
   @HttpCode(HttpStatus.OK)

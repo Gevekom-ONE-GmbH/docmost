@@ -1,11 +1,14 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { getAuditLogs } from "@/features/audit/services/audit-service";
+import {
+  getAuditLogs,
+  IAuditFilters,
+} from "@/features/audit/services/audit-service";
 
-export function useAuditLogsInfiniteQuery(query?: string) {
+export function useAuditLogsInfiniteQuery(filters: IAuditFilters = {}) {
   return useInfiniteQuery({
-    queryKey: ["audit-logs", query ?? ""],
+    queryKey: ["audit-logs", filters],
     queryFn: ({ pageParam }) =>
-      getAuditLogs({ limit: 50, query, cursor: pageParam as string }),
+      getAuditLogs({ limit: 50, cursor: pageParam as string, ...filters }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.meta.hasNextPage
