@@ -71,11 +71,16 @@ const MfaSetupRequiredPage = lazy(() =>
   })),
 );
 const SpaceTrash = lazy(() => import("@/pages/space/space-trash.tsx"));
-const UserApiKeys = lazy(() => import("@/ee/api-key/pages/user-api-keys"));
+const UserApiKeys = lazy(
+  () => import("@/pages/settings/account/user-api-keys"),
+);
 const WorkspaceApiKeys = lazy(
-  () => import("@/ee/api-key/pages/workspace-api-keys"),
+  () => import("@/pages/settings/workspace/workspace-api-keys"),
 );
 const AiSettings = lazy(() => import("@/ee/ai/pages/ai-settings.tsx"));
+const McpSettings = lazy(
+  () => import("@/pages/settings/workspace/mcp-settings.tsx"),
+);
 const BasePage = lazy(() => import("@/ee/base/pages/base-page.tsx"));
 const AuditLogs = lazy(
   () => import("@/pages/settings/workspace/audit-logs.tsx"),
@@ -228,7 +233,13 @@ export default function App() {
             <Route path={"sharing"} element={<Shares />} />
             <Route path={"security"} element={<Security />} />
             <Route path={"ai"} element={<AiSettings />} />
-            <Route path={"ai/mcp"} element={<AiSettings />} />
+            {/* Gevekom: MCP is served by the core MCP server; the EE MCP tab
+                redirects to our own settings page. */}
+            <Route
+              path={"ai/mcp"}
+              element={<Navigate to="/settings/mcp" replace />}
+            />
+            <Route path={"mcp"} element={<McpSettings />} />
             <Route path={"audit"} element={<AuditLogs />} />
             <Route
               path={"audit/siem"}

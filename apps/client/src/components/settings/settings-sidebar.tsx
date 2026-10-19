@@ -16,6 +16,7 @@ import {
   IconHistory,
   IconShieldCheck,
   IconWebhook,
+  IconPlugConnected,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -73,7 +74,6 @@ const groupedData: DataGroup[] = [
         label: "API keys",
         icon: IconKey,
         path: "/settings/account/api-keys",
-        feature: Feature.API_KEYS,
       },
     ],
   },
@@ -108,7 +108,12 @@ const groupedData: DataGroup[] = [
         label: "API management",
         icon: IconKey,
         path: "/settings/api-keys",
-        feature: Feature.API_KEYS,
+        role: "admin",
+      },
+      {
+        label: "MCP",
+        icon: IconPlugConnected,
+        path: "/settings/mcp",
         role: "admin",
       },
       {
