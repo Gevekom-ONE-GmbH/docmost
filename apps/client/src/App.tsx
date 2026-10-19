@@ -1,5 +1,11 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import Layout from "@/components/layouts/global/layout.tsx";
 import { Error404 } from "@/components/ui/error-404.tsx";
 import { isCloud } from "@/lib/config.ts";
@@ -90,8 +96,45 @@ const OAuthConsent = lazy(() => import("@/ee/oauth/pages/oauth-consent.tsx"));
 
 export default function App() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
   useRedirectToCloudSelect();
   useTrackOrigin();
+
+  // Strip an `authToken` (used for external auto-login deep links) from the URL
+  // once consumed, so it is not left visible or bookmarked.
+  useEffect(() => {
+    if (location.search) {
+      const params = new URLSearchParams(location.search);
+      if (params.has("authToken")) {
+        params.delete("authToken");
+        navigate(
+          {
+            pathname: location.pathname,
+            search: params.size ? "?" + params.toString() : "",
+            hash: location.hash,
+          },
+          { replace: true },
+        );
+      }
+    } else {
+      const paramIndex = location.hash.indexOf("?");
+      if (paramIndex !== -1) {
+        const anchor = location.hash.substring(0, paramIndex);
+        const params = new URLSearchParams(location.hash.substring(paramIndex));
+        if (params.has("authToken")) {
+          params.delete("authToken");
+          navigate(
+            {
+              pathname: location.pathname,
+              hash: anchor + (params.size ? "?" + params.toString() : ""),
+            },
+            { replace: true },
+          );
+        }
+      }
+    }
+  }, [location, navigate]);
 
   useEffect(() => {
     // warm the editor chunk so opening a page doesn't wait on the network

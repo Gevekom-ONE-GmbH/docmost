@@ -47,7 +47,6 @@ import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import PageAttachmentsModal from "@/features/attachments/components/page-attachments-modal.tsx";
 import PagePermissionModal from "@/features/page-permission/components/page-permission-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
-import { PageShareModal } from "@/ee/page-permission";
 import {
   PageVerificationMenuItem,
   PageVerificationModal,
@@ -106,8 +105,6 @@ export default function PageHeaderMenu({ readOnly }: PageHeaderMenuProps) {
       <ConnectionWarning />
 
       {!readOnly && !page?.isBase && <PageEditModeToggle size="xs" />}
-
-      <PageShareModal readOnly={readOnly} />
 
       <Tooltip label={t("Comments")} openDelay={250} withArrow>
         <ActionIcon
@@ -339,12 +336,15 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             </Menu.Item>
           )}
 
-          <Menu.Item
-            leftSection={<IconFileExport size={16} />}
-            onClick={openExportModal}
-          >
-            {t("Export")}
-          </Menu.Item>
+          {/* Gevekom: export is restricted to users who can edit the page */}
+          {!readOnly && (
+            <Menu.Item
+              leftSection={<IconFileExport size={16} />}
+              onClick={openExportModal}
+            >
+              {t("Export")}
+            </Menu.Item>
+          )}
 
           <Menu.Item
             leftSection={<IconPrinter size={16} />}

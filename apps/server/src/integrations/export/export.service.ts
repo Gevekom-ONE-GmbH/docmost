@@ -110,6 +110,7 @@ export class ExportService {
     includeChildren: boolean,
     userId?: string,
     ignorePermissions = false,
+    nozip = false,
   ) {
     let pages: Page[];
 
@@ -139,6 +140,9 @@ export class ExportService {
         userId,
         pages[0].spaceId,
       );
+      // Gevekom: page export is restricted to editors, so descendants the
+      // user can only view are excluded as well (with their subtrees).
+      pages = await this.filterEditablePagesForExport(pages, pageId, userId);
       if (pages.length === 0) {
         throw new BadRequestException('No accessible pages to export');
       }
@@ -152,6 +156,14 @@ export class ExportService {
     }
     // set to null to make export of pages with parentId work
     pages[parentPageIndex].parentPageId = null;
+
+    if (nozip) {
+      // Export the page hierarchy as a plain JSON tree with metadata instead of
+      // a zip archive (consumed by external Gevekom tooling).
+      const tree = buildTree(pages as Page[]);
+      const content = await this.buildTreeWithMetadata(tree, format, null, null);
+      return { type: 'json' as const, content, page: pages[0] };
+    }
 
     const isSinglePage = pages.length === 1 && !includeAttachments;
 
@@ -181,6 +193,45 @@ export class ExportService {
     });
 
     return { type: 'zip' as const, stream: zipFile, page: pages[0] };
+  }
+
+  /**
+   * Recursively serialise a page tree into a nested JSON structure where each
+   * node carries its export metadata, rendered content and children. Used by
+   * the `nozip` export variant.
+   */
+  private async buildTreeWithMetadata(
+    tree: PageExportTree,
+    format: string,
+    parentPageId: string | null,
+    parentPath: string | null = null,
+  ): Promise<any[]> {
+    const children = tree[parentPageId] || [];
+    return Promise.all(
+      children.map(async (page) => {
+        const pageTitle = getPageTitle(page.title);
+        const metadata: ExportPageMetadata = {
+          pageId: page.id,
+          slugId: page.slugId,
+          icon: page.icon ?? null,
+          position: page.position,
+          parentPath,
+          createdAt: page.createdAt?.toISOString() ?? new Date().toISOString(),
+          updatedAt: page.updatedAt?.toISOString() ?? new Date().toISOString(),
+        };
+        return {
+          ...page,
+          metadata,
+          content: await this.exportPage(format, page, true),
+          children: await this.buildTreeWithMetadata(
+            tree,
+            format,
+            page.id,
+            pageTitle,
+          ),
+        };
+      }),
+    );
   }
 
   async exportSpace(
@@ -559,6 +610,47 @@ export class ExportService {
       .executeTakeFirst();
 
     return this.domainService.getUrl(workspace?.hostname);
+  }
+
+  /**
+   * Gevekom: keep only pages the user may edit (page-level permissions are
+   * respected; unrestricted pages defer to the space role, which the caller
+   * has already validated on the root page). A non-editable page also drops
+   * its subtree so the exported hierarchy stays connected.
+   */
+  private async filterEditablePagesForExport(
+    pages: Page[],
+    rootPageId: string,
+    userId: string,
+  ): Promise<Page[]> {
+    if (pages.length === 0) return [];
+
+    const permissions =
+      await this.pagePermissionRepo.filterAccessiblePageIdsWithPermissions(
+        pages.map((p) => p.id),
+        userId,
+      );
+    const editableIds = new Set(
+      permissions.filter((p) => p.canEdit).map((p) => p.id),
+    );
+
+    const includedIds = new Set<string>();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const page of pages) {
+        if (includedIds.has(page.id) || !editableIds.has(page.id)) continue;
+        if (
+          page.id === rootPageId ||
+          (page.parentPageId && includedIds.has(page.parentPageId))
+        ) {
+          includedIds.add(page.id);
+          changed = true;
+        }
+      }
+    }
+
+    return pages.filter((p) => includedIds.has(p.id));
   }
 
   private async filterPagesForExport(
