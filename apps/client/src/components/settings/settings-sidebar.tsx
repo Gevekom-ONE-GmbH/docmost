@@ -15,6 +15,7 @@ import {
   IconSparkles,
   IconHistory,
   IconShieldCheck,
+  IconPlugConnected,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -107,6 +108,12 @@ const groupedData: DataGroup[] = [
         label: "API management",
         icon: IconKey,
         path: "/settings/api-keys",
+        role: "admin",
+      },
+      {
+        label: "MCP",
+        icon: IconPlugConnected,
+        path: "/settings/mcp",
         role: "admin",
       },
       {
