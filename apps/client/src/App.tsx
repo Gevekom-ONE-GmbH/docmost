@@ -73,7 +73,7 @@ const AiSettings = lazy(() => import("@/ee/ai/pages/ai-settings.tsx"));
 const BasePage = lazy(() => import("@/ee/base/pages/base-page.tsx"));
 const AuditLogs = lazy(() => import("@/ee/audit/pages/audit-logs.tsx"));
 const VerifiedPages = lazy(
-  () => import("@/ee/page-verification/pages/verified-pages.tsx"),
+  () => import("@/pages/settings/workspace/verified-pages.tsx"),
 );
 const TemplateList = lazy(() => import("@/ee/template/pages/template-list"));
 const TemplateEditor = lazy(
