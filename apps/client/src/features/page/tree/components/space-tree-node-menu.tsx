@@ -171,16 +171,19 @@ export function NodeMenu({ node, canEdit }: NodeMenuProps) {
             {isFavorited ? t("Remove from favorites") : t("Add to favorites")}
           </Menu.Item>
 
-          <Menu.Item
-            leftSection={<IconFileExport size={16} />}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              openExportModal();
-            }}
-          >
-            {t("Export page")}
-          </Menu.Item>
+          {/* Gevekom: export is restricted to users who can edit the page */}
+          {canEdit && (
+            <Menu.Item
+              leftSection={<IconFileExport size={16} />}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openExportModal();
+              }}
+            >
+              {t("Export page")}
+            </Menu.Item>
+          )}
 
           {canEdit && (
             <>

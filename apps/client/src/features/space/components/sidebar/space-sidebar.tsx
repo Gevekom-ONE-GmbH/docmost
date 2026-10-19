@@ -197,6 +197,10 @@ export function SpaceSidebar() {
                   SpaceCaslAction.Manage,
                   SpaceCaslSubject.Page,
                 )}
+                canExportSpace={spaceAbility.can(
+                  SpaceCaslAction.Manage,
+                  SpaceCaslSubject.Settings,
+                )}
                 onSpaceSettings={openSettings}
               />
 
@@ -242,11 +246,14 @@ export function SpaceSidebar() {
 interface SpaceMenuProps {
   spaceId: string;
   canManagePages: boolean;
+  // Gevekom: space export is restricted to space admins (matches the server)
+  canExportSpace: boolean;
   onSpaceSettings: () => void;
 }
 function SpaceMenu({
   spaceId,
   canManagePages,
+  canExportSpace,
   onSpaceSettings,
 }: SpaceMenuProps) {
   const { t } = useTranslation();
@@ -362,12 +369,14 @@ function SpaceMenu({
                 {t("Import pages")}
               </Menu.Item>
 
-              <Menu.Item
-                onClick={openExportModal}
-                leftSection={<IconFileExport size={16} />}
-              >
-                {t("Export space")}
-              </Menu.Item>
+              {canExportSpace && (
+                <Menu.Item
+                  onClick={openExportModal}
+                  leftSection={<IconFileExport size={16} />}
+                >
+                  {t("Export space")}
+                </Menu.Item>
+              )}
 
               <Menu.Divider />
 
@@ -398,12 +407,14 @@ function SpaceMenu({
             onClose={closeImportModal}
           />
 
-          <ExportModal
-            type="space"
-            id={spaceId}
-            open={exportOpened}
-            onClose={closeExportModal}
-          />
+          {canExportSpace && (
+            <ExportModal
+              type="space"
+              id={spaceId}
+              open={exportOpened}
+              onClose={closeExportModal}
+            />
+          )}
         </>
       )}
 

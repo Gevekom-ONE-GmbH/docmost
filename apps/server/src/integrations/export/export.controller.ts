@@ -62,7 +62,9 @@ export class ExportController {
       throw new NotFoundException('Page not found');
     }
 
-    await this.pageAccessService.validateCanView(page, user);
+    // Gevekom: exporting requires edit rights on the page (space role or
+    // page-level permission); viewers/readers must not export content.
+    await this.pageAccessService.validateCanEdit(page, user);
 
     const result = await this.exportService.exportPages(
       dto.pageId,

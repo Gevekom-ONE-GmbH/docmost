@@ -140,6 +140,9 @@ export class ExportService {
         userId,
         pages[0].spaceId,
       );
+      // Gevekom: page export is restricted to editors, so descendants the
+      // user can only view are excluded as well (with their subtrees).
+      pages = await this.filterEditablePagesForExport(pages, pageId, userId);
       if (pages.length === 0) {
         throw new BadRequestException('No accessible pages to export');
       }
@@ -607,6 +610,47 @@ export class ExportService {
       .executeTakeFirst();
 
     return this.domainService.getUrl(workspace?.hostname);
+  }
+
+  /**
+   * Gevekom: keep only pages the user may edit (page-level permissions are
+   * respected; unrestricted pages defer to the space role, which the caller
+   * has already validated on the root page). A non-editable page also drops
+   * its subtree so the exported hierarchy stays connected.
+   */
+  private async filterEditablePagesForExport(
+    pages: Page[],
+    rootPageId: string,
+    userId: string,
+  ): Promise<Page[]> {
+    if (pages.length === 0) return [];
+
+    const permissions =
+      await this.pagePermissionRepo.filterAccessiblePageIdsWithPermissions(
+        pages.map((p) => p.id),
+        userId,
+      );
+    const editableIds = new Set(
+      permissions.filter((p) => p.canEdit).map((p) => p.id),
+    );
+
+    const includedIds = new Set<string>();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const page of pages) {
+        if (includedIds.has(page.id) || !editableIds.has(page.id)) continue;
+        if (
+          page.id === rootPageId ||
+          (page.parentPageId && includedIds.has(page.parentPageId))
+        ) {
+          includedIds.add(page.id);
+          changed = true;
+        }
+      }
+    }
+
+    return pages.filter((p) => includedIds.has(p.id));
   }
 
   private async filterPagesForExport(
