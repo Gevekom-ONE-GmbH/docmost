@@ -118,10 +118,9 @@ const groupedData: DataGroup[] = [
         role: "admin",
       },
       {
-        label: "Audit logs & SIEM",
+        label: "Audit log",
         icon: IconHistory,
         path: "/settings/audit",
-        feature: Feature.AUDIT_LOGS,
         role: "owner",
         env: "selfhosted",
       },
@@ -219,7 +218,7 @@ export default function SettingsSidebar() {
             case "API management":
               prefetchHandler = prefetchApiKeyManagement;
               break;
-            case "Audit logs & SIEM":
+            case "Audit log":
               prefetchHandler = prefetchAuditLogs;
               break;
             case "Verified pages":

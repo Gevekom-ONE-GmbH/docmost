@@ -11,7 +11,7 @@ import { getLicenseInfo } from "@/ee/licence/services/license-service.ts";
 import { getSsoProviders } from "@/ee/security/services/security-service.ts";
 import { getShares } from "@/features/share/services/share-service.ts";
 import { getApiKeys } from "@/ee/api-key";
-import { getAuditLogs } from "@/ee/audit/services/audit-service";
+import { getAuditLogs } from "@/features/audit/services/audit-service";
 import { getVerificationList } from "@/ee/page-verification/services/page-verification-service";
 import { getScimTokens } from "@/ee/scim/services/scim-token-service";
 
@@ -85,10 +85,12 @@ export const prefetchApiKeyManagement = () => {
 };
 
 export const prefetchAuditLogs = () => {
-  const params = { limit: 50 };
-  queryClient.prefetchQuery({
-    queryKey: ["audit-logs", params],
-    queryFn: () => getAuditLogs(params),
+  // Matches useAuditLogsInfiniteQuery() with no filters.
+  queryClient.prefetchInfiniteQuery({
+    queryKey: ["audit-logs", {}],
+    queryFn: ({ pageParam }) =>
+      getAuditLogs({ limit: 50, cursor: pageParam as string | undefined }),
+    initialPageParam: undefined as string | undefined,
   });
 };
 
