@@ -26,6 +26,7 @@ import { FavoriteModule } from './favorite/favorite.module';
 import { SessionModule } from './session/session.module';
 import { PagePermissionModule } from './page/page-permission/page-permission.module';
 import { PageVerificationModule } from './page/page-verification/page-verification.module';
+import { WebhookModule } from './webhook/webhook.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -50,6 +51,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     SessionModule,
     PagePermissionModule,
     PageVerificationModule,
+    WebhookModule,
   ],
 })
 export class CoreModule implements NestModule {

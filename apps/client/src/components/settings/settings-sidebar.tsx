@@ -15,6 +15,7 @@ import {
   IconSparkles,
   IconHistory,
   IconShieldCheck,
+  IconWebhook,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -111,16 +112,21 @@ const groupedData: DataGroup[] = [
         role: "admin",
       },
       {
+        label: "Webhooks",
+        icon: IconWebhook,
+        path: "/settings/webhooks",
+        role: "admin",
+      },
+      {
         label: "AI settings",
         icon: IconSparkles,
         path: "/settings/ai",
         role: "admin",
       },
       {
-        label: "Audit logs & SIEM",
+        label: "Audit log",
         icon: IconHistory,
         path: "/settings/audit",
-        feature: Feature.AUDIT_LOGS,
         role: "owner",
         env: "selfhosted",
       },
@@ -218,7 +224,7 @@ export default function SettingsSidebar() {
             case "API management":
               prefetchHandler = prefetchApiKeyManagement;
               break;
-            case "Audit logs & SIEM":
+            case "Audit log":
               prefetchHandler = prefetchAuditLogs;
               break;
             case "Verified pages":

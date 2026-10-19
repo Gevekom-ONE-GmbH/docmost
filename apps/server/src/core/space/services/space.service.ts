@@ -278,6 +278,14 @@ export class SpaceService {
       throw new NotFoundException('Space not found');
     }
 
+    // Count pages removed with the space (they cascade-delete).
+    const pageCountRow = await this.db
+      .selectFrom('pages')
+      .select((eb) => eb.fn.countAll().as('c'))
+      .where('spaceId', '=', spaceId)
+      .executeTakeFirst();
+    const pageCount = Number(pageCountRow?.c ?? 0);
+
     await this.spaceRepo.deleteSpace(spaceId, workspaceId);
     await this.attachmentQueue.add(QueueJob.DELETE_SPACE_ATTACHMENTS, space);
 
@@ -293,6 +301,7 @@ export class SpaceService {
           description: space.description,
         },
       },
+      metadata: { pageCount },
     });
   }
 }

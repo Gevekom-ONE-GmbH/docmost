@@ -42,6 +42,7 @@ import {
   Watchers,
   Audit as _Audit,
   Templates,
+  Webhooks,
   OauthClients,
   OauthAuthorizationCodes,
   OauthGrants,
@@ -279,3 +280,8 @@ export type UpdatableBaseView = Updateable<Omit<BaseViews, 'id'>>;
 export type SiemDestination = Selectable<SiemDestinations>;
 export type InsertableSiemDestination = Insertable<SiemDestinations>;
 export type UpdatableSiemDestination = Updateable<Omit<SiemDestinations, 'id'>>;
+
+// Webhook (Gevekom)
+export type Webhook = Selectable<Webhooks>;
+export type InsertableWebhook = Insertable<Webhooks>;
+export type UpdatableWebhook = Updateable<Omit<Webhooks, 'id'>>;

@@ -71,7 +71,10 @@ const WorkspaceApiKeys = lazy(
 );
 const AiSettings = lazy(() => import("@/ee/ai/pages/ai-settings.tsx"));
 const BasePage = lazy(() => import("@/ee/base/pages/base-page.tsx"));
-const AuditLogs = lazy(() => import("@/ee/audit/pages/audit-logs.tsx"));
+const AuditLogs = lazy(
+  () => import("@/pages/settings/workspace/audit-logs.tsx"),
+);
+const Webhooks = lazy(() => import("@/pages/settings/workspace/webhooks.tsx"));
 const VerifiedPages = lazy(
   () => import("@/pages/settings/workspace/verified-pages.tsx"),
 );
@@ -184,12 +187,16 @@ export default function App() {
             <Route path={"ai"} element={<AiSettings />} />
             <Route path={"ai/mcp"} element={<AiSettings />} />
             <Route path={"audit"} element={<AuditLogs />} />
-            <Route path={"audit/siem"} element={<AuditLogs />} />
+            <Route
+              path={"audit/siem"}
+              element={<Navigate to="/settings/audit" replace />}
+            />
             <Route
               path={"siem"}
-              element={<Navigate to="/settings/audit/siem" replace />}
+              element={<Navigate to="/settings/audit" replace />}
             />
             <Route path={"verifications"} element={<VerifiedPages />} />
+            <Route path={"webhooks"} element={<Webhooks />} />
             {!isCloud() && <Route path={"license"} element={<License />} />}
             {isCloud() && <Route path={"billing"} element={<Billing />} />}
           </Route>
