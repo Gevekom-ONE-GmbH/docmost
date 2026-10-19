@@ -65,9 +65,11 @@ const MfaSetupRequiredPage = lazy(() =>
   })),
 );
 const SpaceTrash = lazy(() => import("@/pages/space/space-trash.tsx"));
-const UserApiKeys = lazy(() => import("@/ee/api-key/pages/user-api-keys"));
+const UserApiKeys = lazy(
+  () => import("@/pages/settings/account/user-api-keys"),
+);
 const WorkspaceApiKeys = lazy(
-  () => import("@/ee/api-key/pages/workspace-api-keys"),
+  () => import("@/pages/settings/workspace/workspace-api-keys"),
 );
 const AiSettings = lazy(() => import("@/ee/ai/pages/ai-settings.tsx"));
 const BasePage = lazy(() => import("@/ee/base/pages/base-page.tsx"));

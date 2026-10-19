@@ -1,24 +1,25 @@
 import { Button, Group } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconPlus } from "@tabler/icons-react";
-import { Helmet } from "react-helmet-async";
 import { useTranslation } from "react-i18next";
 import SettingsTitle from "@/components/settings/settings-title.tsx";
-import { getAppName } from "@/lib/config.ts";
+import { DocumentTitle } from "@/components/ui/document-title.tsx";
+import useUserRole from "@/hooks/use-user-role.tsx";
 import ApiKeyList from "@/features/api-key/components/api-key-list";
 import CreateApiKeyModal from "@/features/api-key/components/create-api-key-modal";
 
 export default function WorkspaceApiKeys() {
   const { t } = useTranslation();
   const [opened, { open, close }] = useDisclosure(false);
+  const { isAdmin } = useUserRole();
+
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <>
-      <Helmet>
-        <title>
-          {t("API management")} - {getAppName()}
-        </title>
-      </Helmet>
+      <DocumentTitle title={t("API management")} />
       <SettingsTitle title={t("API management")} />
 
       <Group justify="flex-end" mb="md">
