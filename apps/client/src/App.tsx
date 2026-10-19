@@ -74,6 +74,7 @@ const BasePage = lazy(() => import("@/ee/base/pages/base-page.tsx"));
 const AuditLogs = lazy(
   () => import("@/pages/settings/workspace/audit-logs.tsx"),
 );
+const Webhooks = lazy(() => import("@/pages/settings/workspace/webhooks.tsx"));
 const VerifiedPages = lazy(
   () => import("@/ee/page-verification/pages/verified-pages.tsx"),
 );
@@ -195,6 +196,7 @@ export default function App() {
               element={<Navigate to="/settings/audit" replace />}
             />
             <Route path={"verifications"} element={<VerifiedPages />} />
+            <Route path={"webhooks"} element={<Webhooks />} />
             {!isCloud() && <Route path={"license"} element={<License />} />}
             {isCloud() && <Route path={"billing"} element={<Billing />} />}
           </Route>

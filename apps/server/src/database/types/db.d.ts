@@ -543,6 +543,21 @@ export interface Watchers {
   createdAt: Generated<Timestamp>;
 }
 
+export interface Webhooks {
+  createdAt: Generated<Timestamp>;
+  creatorId: string | null;
+  deletedAt: Timestamp | null;
+  events: string[];
+  id: Generated<string>;
+  isActive: Generated<boolean>;
+  lastTriggeredAt: Timestamp | null;
+  name: string | null;
+  secret: string | null;
+  updatedAt: Generated<Timestamp>;
+  url: string;
+  workspaceId: string;
+}
+
 export interface Labels {
   id: Generated<string>;
   name: string;
@@ -771,6 +786,7 @@ export interface DB {
   userSessions: UserSessions;
   userTokens: UserTokens;
   watchers: Watchers;
+  webhooks: Webhooks;
   workspaceInvitations: WorkspaceInvitations;
   workspaces: Workspaces;
   oauthAuthorizationCodes: OauthAuthorizationCodes;
