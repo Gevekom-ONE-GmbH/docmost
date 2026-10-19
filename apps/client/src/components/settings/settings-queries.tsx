@@ -13,7 +13,7 @@ import { getShares } from "@/features/share/services/share-service.ts";
 import { getApiKeys } from "@/features/api-key/services/api-key-service";
 import { API_KEYS_KEY } from "@/features/api-key/queries/api-key-query";
 import { getAuditLogs } from "@/features/audit/services/audit-service";
-import { getVerificationList } from "@/ee/page-verification/services/page-verification-service";
+import { getVerifications } from "@/features/page-verification/services/page-verification-service";
 import { getScimTokens } from "@/ee/scim/services/scim-token-service";
 
 export const prefetchWorkspaceMembers = () => {
@@ -98,10 +98,10 @@ export const prefetchAuditLogs = () => {
 };
 
 export const prefetchVerifiedPages = () => {
-  const params = { limit: 50 };
+  // Same key/fn as useVerificationListQuery() on the verified-pages page.
   queryClient.prefetchQuery({
-    queryKey: ["verification-list", params],
-    queryFn: () => getVerificationList(params),
+    queryKey: ["page-verifications", undefined],
+    queryFn: () => getVerifications({ limit: 100 }),
   });
 };
 
