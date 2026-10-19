@@ -214,6 +214,25 @@ export class EnvironmentService {
     return !this.isCloud();
   }
 
+  /**
+   * Gevekom: multi-workspace mode (one workspace per full hostname).
+   * Never combined with cloud mode.
+   */
+  isMultiWorkspace(): boolean {
+    const multi = this.configService
+      .get<string>('MULTI_WORKSPACE', 'false')
+      .toLowerCase();
+    return multi === 'true' && !this.isCloud();
+  }
+
+  getWorkspaceHosts(): string {
+    return this.configService.get<string>('WORKSPACE_HOSTS', '');
+  }
+
+  getDefaultWorkspaceHost(): string {
+    return this.configService.get<string>('DEFAULT_WORKSPACE_HOST', '');
+  }
+
   getStripePublishableKey(): string {
     return this.configService.get<string>('STRIPE_PUBLISHABLE_KEY');
   }
