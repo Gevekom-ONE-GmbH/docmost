@@ -24,6 +24,11 @@ const migrator = new Migrator({
     path,
     migrationFolder,
   }),
+  // Gevekom: our fork migration 20260701T120000-webhooks already ran in prod,
+  // while upstream later added migrations with older timestamps (e.g.
+  // 20260529-bases, 20260620-personal-spaces). Without this flag Kysely aborts
+  // with "corrupted migrations" instead of running the pending older ones.
+  allowUnorderedMigrations: true,
 });
 
 run(db, migrator, migrationFolder);
