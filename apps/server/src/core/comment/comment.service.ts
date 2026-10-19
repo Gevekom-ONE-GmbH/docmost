@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -10,6 +11,11 @@ import { Queue } from 'bullmq';
 import { CreateCommentDto, yjsSelectionSchema } from './dto/create-comment.dto';
 import { CollaborationGateway } from '../../collaboration/collaboration.gateway';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import {
+  AUDIT_SERVICE,
+  IAuditService,
+} from '../../integrations/audit/audit.service';
+import { AuditEvent, AuditResource } from '../../common/events/audit-events';
 import { CommentRepo } from '@docmost/db/repos/comment/comment.repo';
 import { Comment, Page, User } from '@docmost/db/types/entity.types';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
@@ -33,7 +39,45 @@ export class CommentService {
     private generalQueue: Queue,
     @InjectQueue(QueueName.NOTIFICATION_QUEUE)
     private notificationQueue: Queue,
+    @Inject(AUDIT_SERVICE) private auditService: IAuditService,
   ) {}
+
+  async resolveComment(
+    comment: Comment,
+    resolved: boolean,
+    authUser: User,
+  ): Promise<Comment> {
+    const now = new Date();
+    const resolvedAt = resolved ? now : null;
+    const resolvedById = resolved ? authUser.id : null;
+
+    await this.commentRepo.updateComment(
+      { resolvedAt, resolvedById, updatedAt: now },
+      comment.id,
+    );
+
+    comment.resolvedAt = resolvedAt;
+    comment.resolvedById = resolvedById;
+    comment.updatedAt = now;
+
+    // notify other clients viewing the thread
+    this.wsService.emitCommentEvent(comment.spaceId, comment.pageId, {
+      operation: 'commentUpdated',
+      pageId: comment.pageId,
+      comment,
+    });
+
+    this.auditService.log({
+      event: resolved
+        ? AuditEvent.COMMENT_RESOLVED
+        : AuditEvent.COMMENT_REOPENED,
+      resourceType: AuditResource.COMMENT,
+      resourceId: comment.id,
+      spaceId: comment.spaceId,
+    });
+
+    return comment;
+  }
 
   async findById(commentId: string) {
     const comment = await this.commentRepo.findById(commentId, {

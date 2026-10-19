@@ -8,11 +8,13 @@ import {
   createComment,
   deleteComment,
   getPageComments,
+  resolveComment,
   updateComment,
 } from "@/features/comment/services/comment-service";
 import {
   ICommentParams,
   IComment,
+  IResolveComment,
 } from "@/features/comment/types/comment.types";
 import { notifications } from "@mantine/notifications";
 import { IPagination } from "@/lib/types.ts";
@@ -158,4 +160,53 @@ export function useDeleteCommentMutation(pageId?: string) {
   });
 }
 
-// EE: useResolveCommentMutation has been moved to @/ee/comment/queries/comment-query
+// Clean-room (non-EE) comment resolution.
+export function useResolveCommentMutation() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: (data: IResolveComment) => resolveComment(data),
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: RQ_KEY(variables.pageId) });
+      const previousCache = queryClient.getQueryData(RQ_KEY(variables.pageId));
+      const cache = previousCache as
+        | InfiniteData<IPagination<IComment>>
+        | undefined;
+
+      if (cache) {
+        queryClient.setQueryData(RQ_KEY(variables.pageId), {
+          ...cache,
+          pages: cache.pages.map((page) => ({
+            ...page,
+            items: page.items.map((comment) =>
+              comment.id === variables.commentId
+                ? {
+                    ...comment,
+                    resolvedAt: variables.resolved ? new Date() : null,
+                    resolvedById: variables.resolved ? "optimistic" : null,
+                  }
+                : comment,
+            ),
+          })),
+        });
+      }
+      return { previousCache };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousCache) {
+        queryClient.setQueryData(
+          RQ_KEY(variables.pageId),
+          context.previousCache,
+        );
+      }
+      notifications.show({
+        message: t("Failed to resolve comment"),
+        color: "red",
+      });
+    },
+    onSettled: (_data, _err, variables) => {
+      queryClient.invalidateQueries({ queryKey: RQ_KEY(variables.pageId) });
+    },
+  });
+}
