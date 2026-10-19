@@ -279,6 +279,45 @@ ignoriert — `/mcp` akzeptiert nur API-Keys.
 - `App.tsx`: lazy Route `/settings/mcp`; `/settings/ai/mcp` (Upstreams lizenz-gegateter EE-Tab) leitet auf `/settings/mcp` um
 - `components/settings/settings-sidebar.tsx`: Eintrag „MCP" (Workspace, role admin)
 
+### B9) Multi-Workspace (Multi-Host-Modus)
+
+Eine Docmost-Instanz (auch mehrere Replicas hinter dem Load-Balancer) bedient mehrere
+**vollständig getrennte Workspaces**, je einen pro **vollem Hostnamen**
+(`docmost.gevekom.one` → Gevekom, `wiki.svntn.ai` → svntn). Benutzer, Spaces, Seiten,
+Admins und Audit-Logs sind über `workspace_id` getrennt (Schema/`JwtStrategy` des Kerns).
+**Kein** Cloud-Modus (`CLOUD` bleibt `false`, keine Billing-/Lizenz-Logik); ohne
+`MULTI_WORKSPACE=true` ist das Verhalten identisch zu Upstream.
+
+**Server — neue Dateien:**
+- `apps/server/src/integrations/multi-workspace/` (`multi-workspace.module.ts` (global), `workspace-resolver.service.ts`, `workspace-host-backfill.service.ts`, `host.utils.ts` + Specs)
+- Specs: `core/auth/guards/setup.guard.spec.ts`, `integrations/environment/domain.service.spec.ts`
+
+**Server — Touch-Points (neu auftragen):**
+- `app.module.ts`: `MultiWorkspaceModule` in `imports`
+- `common/middlewares/domain.middleware.ts`: Workspace-Auflösung komplett über `WorkspaceResolverService.resolveWorkspace(req.headers)`
+- `core/share/share-seo.controller.ts`, `core/public-space/public-space-seo.controller.ts`: duplizierte Auflösung (`findFirst`/Subdomain) durch den Resolver ersetzt
+- `core/auth/guards/setup.guard.ts`: Multi-Modus-Zweig + `getSetupHostname()`
+- `core/auth/auth.controller.ts` (`setupWorkspace`), `core/auth/services/auth.service.ts` (`setup(dto, opts)`), `core/auth/services/signup.service.ts` (`initialSetup(dto, trx, opts)`): geprüften Host in derselben Transaktion als `workspaces.hostname` setzen
+- `core/workspace/controllers/workspace.controller.ts`: Hostname-Änderung über `/workspace/update` im Multi-Modus verboten (403)
+- `integrations/environment/environment.service.ts`: `isMultiWorkspace()`, `getWorkspaceHosts()`, `getDefaultWorkspaceHost()`
+- `integrations/environment/domain.service.ts`: `getUrl(hostname)` liefert im Multi-Modus `<proto>://<workspace.hostname>` (Einladungs-, Passwort-Reset-, Benachrichtigungs-, Export- und Attachment-Links)
+- `integrations/mcp/mcp.controller.ts` (B8): `/mcp` liegt außerhalb des `/api`-Prefix, die Domain-Middleware läuft dort nicht → der Controller prüft im Multi-Modus selbst, dass Host-Workspace = Token-Workspace (sonst 403)
+
+**Mechanik:**
+- **Auflösung:** Request-Host = `X-Forwarded-Host` (letzter Eintrag, da `trustProxy: true`), sonst `Host`; lower-case, ohne Port. Nur Hosts aus `WORKSPACE_HOSTS` werden per `findByHostname` (vergleicht `LOWER(hostname)`) aufgelöst. Unbekannter oder nicht freigegebener Host → **kein** Workspace (404), **kein** Fallback auf den ersten Workspace.
+- **Setup:** Erlaubt nur für einen freigegebenen Host ohne Workspace und nur, solange kein Workspace mit `hostname IS NULL` existiert. Der Host kommt aus dem Guard (nicht aus dem Client-DTO) und wird in der Setup-Transaktion gesetzt; der Unique-Index `idx_workspaces_hostname_lower` macht parallele Setups race-sicher (409).
+- **Backfill Bestands-Workspace:** `DEFAULT_WORKSPACE_HOST` wird beim Start per einzelnem bedingtem `UPDATE` gesetzt, nur wenn genau **ein** Workspace existiert, dieser `hostname IS NULL` hat und der Host freigegeben und noch frei ist. Idempotent und replica-sicher. Manuelle Alternative: `UPDATE workspaces SET hostname='docmost.gevekom.one', updated_at=now() WHERE hostname IS NULL AND (SELECT count(*) FROM workspaces)=1;`
+- **Start:** `MULTI_WORKSPACE=true` ohne `WORKSPACE_HOSTS` → Start bricht ab. Workspace ohne Hostname → Warnung (nicht erreichbar, Setup gesperrt). `COLLAB_URL` gesetzt → Warnung.
+- **Cookies** sind host-only (pro Host getrennt). Die Collab/WS-Auth ist token-basiert (`workspaceId` im JWT).
+
+**Env-Variablen:**
+- `MULTI_WORKSPACE=true` (Default `false`)
+- `WORKSPACE_HOSTS=docmost.gevekom.one,wiki.svntn.ai` (Allowlist, Pflicht im Multi-Modus)
+- `DEFAULT_WORKSPACE_HOST=docmost.gevekom.one` (einmaliger Backfill des Bestands-Workspace; im **selben** Rollout wie `MULTI_WORKSPACE=true` setzen, sonst ist Gevekom bis zum Backfill 404)
+- `APP_URL` bleibt (Protokoll + Fallback); `COLLAB_URL` leer lassen
+
+**Betrieb:** HAProxy/Swarm muss beide Hosts mit erhaltenem `Host` (oder vom Proxy gesetztem/überschriebenem `X-Forwarded-Host`) auf denselben Service leiten; TLS für beide Hosts; alle Replicas mit identischer Env. Das **Setup für einen neuen Host sofort nach Freischaltung** durchführen — der erste Besucher wird Owner (alternativ Host erst nach dem Setup im HAProxy freigeben). Der HAProxy-SSO-Flow (A3/A4) gilt nur für `docmost.gevekom.one`. `MAIL_FROM_*` ist global, für beide Workspaces gilt derselbe Absender.
+
 ## Hinweise zur Backend-API (native Docmost-Features)
 
 Kein Fork-Code, aber für die Backend-Integration relevant:
