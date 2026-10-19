@@ -4,8 +4,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { join } from 'path';
 import * as fs from 'node:fs';
 import { validate as isValidUUID } from 'uuid';
-import { WorkspaceRepo } from '@docmost/db/repos/workspace/workspace.repo';
-import { EnvironmentService } from '../../integrations/environment/environment.service';
+import { WorkspaceResolverService } from '../../integrations/multi-workspace/workspace-resolver.service';
 import { Workspace } from '@docmost/db/types/entity.types';
 import { htmlEscape } from '../../common/helpers/html-escaper';
 
@@ -13,8 +12,7 @@ import { htmlEscape } from '../../common/helpers/html-escaper';
 export class ShareSeoController {
   constructor(
     private readonly shareService: ShareService,
-    private workspaceRepo: WorkspaceRepo,
-    private environmentService: EnvironmentService,
+    private workspaceResolver: WorkspaceResolverService,
   ) {}
 
   /*
@@ -33,14 +31,8 @@ export class ShareSeoController {
     // https://github.com/nestjs/nest/issues/13401
     // we have to duplicate the DomainMiddleware code here as a workaround
 
-    let workspace: Workspace = null;
-    if (this.environmentService.isSelfHosted()) {
-      workspace = await this.workspaceRepo.findFirst();
-    } else {
-      const header = req.raw.headers.host;
-      const subdomain = header.split('.')[0];
-      workspace = await this.workspaceRepo.findByHostname(subdomain);
-    }
+    const workspace: Workspace =
+      await this.workspaceResolver.resolveWorkspace(req.raw.headers);
 
     const clientDistPath = join(
       __dirname,

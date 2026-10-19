@@ -3,8 +3,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { join } from 'path';
 import * as fs from 'node:fs';
 import { validate as isValidUUID } from 'uuid';
-import { WorkspaceRepo } from '@docmost/db/repos/workspace/workspace.repo';
-import { EnvironmentService } from '../../integrations/environment/environment.service';
+import { WorkspaceResolverService } from '../../integrations/multi-workspace/workspace-resolver.service';
 import { Workspace } from '@docmost/db/types/entity.types';
 import { htmlEscape } from '../../common/helpers/html-escaper';
 import { PublicSpaceService } from './public-space.service';
@@ -15,8 +14,7 @@ export class PublicSpaceSeoController {
 
   constructor(
     private readonly publicSpaceService: PublicSpaceService,
-    private workspaceRepo: WorkspaceRepo,
-    private environmentService: EnvironmentService,
+    private workspaceResolver: WorkspaceResolverService,
   ) {}
 
   /*
@@ -147,12 +145,7 @@ export class PublicSpaceSeoController {
   // Prefix-excluded routes skip middleware, so resolve the workspace inline
   // exactly like ShareSeoController does.
   private async resolveWorkspace(req: FastifyRequest): Promise<Workspace> {
-    if (this.environmentService.isSelfHosted()) {
-      return this.workspaceRepo.findFirst();
-    }
-    const header = req.raw.headers.host;
-    const subdomain = header.split('.')[0];
-    return this.workspaceRepo.findByHostname(subdomain);
+    return this.workspaceResolver.resolveWorkspace(req.raw.headers);
   }
 
   sendIndex(indexFilePath: string, res: FastifyReply) {

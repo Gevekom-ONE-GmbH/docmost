@@ -18,7 +18,7 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { AuthService } from './services/auth.service';
 import { SessionService } from '../session/session.service';
-import { SetupGuard } from './guards/setup.guard';
+import { SetupGuard, getSetupHostname } from './guards/setup.guard';
 import { EnvironmentService } from '../../integrations/environment/environment.service';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -108,11 +108,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('setup')
   async setupWorkspace(
+    @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
     @Body() createAdminUserDto: CreateAdminUserDto,
   ) {
-    const { workspace, authToken } =
-      await this.authService.setup(createAdminUserDto);
+    // Gevekom multi-workspace: bind the new workspace to the guarded host
+    const { workspace, authToken } = await this.authService.setup(
+      createAdminUserDto,
+      { hostname: getSetupHostname(req.raw) },
+    );
 
     this.setAuthCookie(res, authToken);
     return workspace;

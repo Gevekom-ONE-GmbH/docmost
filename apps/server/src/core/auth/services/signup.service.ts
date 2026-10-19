@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { WorkspaceService } from '../../workspace/services/workspace.service';
 import { CreateWorkspaceDto } from '../../workspace/dto/create-workspace.dto';
@@ -102,6 +107,7 @@ export class SignupService {
   async initialSetup(
     createAdminUserDto: CreateAdminUserDto,
     trx?: KyselyTransaction,
+    opts?: { hostname?: string },
   ) {
     let user: User,
       workspace: Workspace = null;
@@ -132,6 +138,25 @@ export class SignupService {
           workspaceData,
           trx,
         );
+
+        // Gevekom multi-workspace: bind workspace to its host in the same
+        // transaction; the unique index on LOWER(hostname) makes concurrent
+        // setups for the same host fail (and roll back) instead of duplicating.
+        if (opts?.hostname) {
+          try {
+            await this.workspaceRepo.updateWorkspace(
+              { hostname: opts.hostname },
+              workspace.id,
+              trx,
+            );
+          } catch (err: any) {
+            if (err?.code === '23505') {
+              throw new ConflictException('Workspace setup already completed.');
+            }
+            throw err;
+          }
+          workspace.hostname = opts.hostname;
+        }
 
         user.workspaceId = workspace.id;
         return user;

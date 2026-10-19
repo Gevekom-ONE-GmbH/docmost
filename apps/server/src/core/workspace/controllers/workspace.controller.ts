@@ -96,6 +96,13 @@ export class WorkspaceController {
       throw new ForbiddenException();
     }
 
+    // Gevekom multi-workspace: the hostname is the tenant routing key
+    if (this.environmentService.isMultiWorkspace() && dto.hostname) {
+      throw new ForbiddenException(
+        'Hostname cannot be changed in multi-workspace mode',
+      );
+    }
+
     const updatedWorkspace = await this.workspaceService.update(
       workspace.id,
       dto,

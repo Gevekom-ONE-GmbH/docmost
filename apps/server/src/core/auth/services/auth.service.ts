@@ -108,9 +108,15 @@ export class AuthService {
     return this.sessionService.createSessionAndToken(user);
   }
 
-  async setup(createAdminUserDto: CreateAdminUserDto) {
-    const { workspace, user } =
-      await this.signupService.initialSetup(createAdminUserDto);
+  async setup(
+    createAdminUserDto: CreateAdminUserDto,
+    opts?: { hostname?: string },
+  ) {
+    const { workspace, user } = await this.signupService.initialSetup(
+      createAdminUserDto,
+      undefined,
+      opts,
+    );
 
     const authToken = await this.sessionService.createSessionAndToken(user);
     return { workspace, authToken };
