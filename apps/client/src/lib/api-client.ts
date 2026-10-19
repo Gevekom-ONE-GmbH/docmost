@@ -87,7 +87,12 @@ function redirectToLogin() {
     "/oauth/consent",
   ];
   if (!exemptPaths.some((path) => window.location.pathname.startsWith(path))) {
-    const redirectTo = window.location.pathname;
+    // Preserve the full deep link (search + hash, e.g. heading anchors) so the
+    // user lands exactly where they were after logging in.
+    const redirectTo =
+      window.location.pathname +
+      window.location.search +
+      window.location.hash;
     if (redirectTo === APP_ROUTE.HOME) {
       window.location.href = APP_ROUTE.AUTH.LOGIN;
     } else {
