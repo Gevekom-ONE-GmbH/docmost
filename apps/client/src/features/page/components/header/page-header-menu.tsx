@@ -9,6 +9,7 @@ import {
   IconHistory,
   IconLink,
   IconList,
+  IconLock,
   IconMarkdown,
   IconMessage,
   IconPaperclip,
@@ -44,12 +45,13 @@ import { formattedDate } from "@/lib/time.ts";
 import { PageEditModeToggle } from "@/features/user/components/page-state-pref.tsx";
 import MovePageModal from "@/features/page/components/move-page-modal.tsx";
 import PageAttachmentsModal from "@/features/attachments/components/page-attachments-modal.tsx";
+import PagePermissionModal from "@/features/page-permission/components/page-permission-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import { PageShareModal } from "@/ee/page-permission";
 import {
   PageVerificationMenuItem,
   PageVerificationModal,
-} from "@/ee/page-verification";
+} from "@/features/page-verification";
 import {
   useFavoriteIds,
   useAddFavoriteMutation,
@@ -163,6 +165,10 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
     attachmentsOpened,
     { open: openAttachmentsModal, close: closeAttachmentsModal },
   ] = useDisclosure(false);
+  const [
+    permissionOpened,
+    { open: openPermissionModal, close: closePermissionModal },
+  ] = useDisclosure(false);
   const [pageEditor] = useAtom(pageEditorAtom);
   const pageUpdatedAt = useTimeAgo(page?.updatedAt);
   const favoriteIds = useFavoriteIds("page", page?.spaceId);
@@ -250,6 +256,13 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
               {t("Copy as Markdown")}
             </Menu.Item>
           )}
+
+          <Menu.Item
+            leftSection={<IconLock size={16} />}
+            onClick={openPermissionModal}
+          >
+            {t("Permissions")}
+          </Menu.Item>
 
           <Menu.Item
             leftSection={
@@ -415,6 +428,12 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
         pageId={page.id}
         open={attachmentsOpened}
         onClose={closeAttachmentsModal}
+      />
+
+      <PagePermissionModal
+        pageId={page.id}
+        opened={permissionOpened}
+        onClose={closePermissionModal}
       />
     </>
   );
