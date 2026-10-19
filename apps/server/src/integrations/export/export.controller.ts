@@ -50,7 +50,7 @@ export class ExportController {
   @HttpCode(HttpStatus.OK)
   @Post('pages/export')
   async exportPage(
-    @Body() dto: ExportPageDto,
+    @Body() dto: ExportPageDto & { nozip?: boolean },
     @AuthUser() user: User,
     @Res() res: FastifyReply,
   ) {
@@ -70,6 +70,8 @@ export class ExportController {
       dto.includeAttachments,
       dto.includeChildren,
       user.id,
+      false,
+      !!dto.nozip,
     );
 
     this.auditService.log({
@@ -86,7 +88,13 @@ export class ExportController {
       },
     });
 
-    if (result.type === 'file') {
+    if (result.type === 'json') {
+      // nozip export: return the page tree as plain JSON (no zip archive)
+      res.headers({
+        'Content-Type': 'application/json',
+      });
+      res.send(result.content);
+    } else if (result.type === 'file') {
       const ext = getExportExtension(dto.format);
       const fileName =
         sanitizeFileName(page.title || 'untitled', { preserveSpaces: true }) +
