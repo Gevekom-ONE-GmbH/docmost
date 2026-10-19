@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -6,11 +7,17 @@ import {
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { createHmac } from 'crypto';
+import { fetch } from 'undici';
 import { WebhookRepo } from '@docmost/db/repos/webhook/webhook.repo';
 import { Webhook } from '@docmost/db/types/entity.types';
 import { PaginationOptions } from '@docmost/db/pagination/pagination-options';
 import { EventName } from '../../common/events/event.contants';
 import { CreateWebhookDto, UpdateWebhookDto } from './dto/webhook.dto';
+import {
+  OutboundUrlError,
+  OutboundUrlGuard,
+} from '../../integrations/outbound/outbound-url.guard';
+import { OutboundAgentFactory } from '../../integrations/outbound/outbound-agent.factory';
 
 const DELIVERY_TIMEOUT_MS = 10_000;
 
@@ -18,11 +25,16 @@ const DELIVERY_TIMEOUT_MS = 10_000;
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
 
-  constructor(private readonly webhookRepo: WebhookRepo) {}
+  constructor(
+    private readonly webhookRepo: WebhookRepo,
+    private readonly outboundUrlGuard: OutboundUrlGuard,
+    private readonly outboundAgentFactory: OutboundAgentFactory,
+  ) {}
 
   // ---- CRUD ----
 
   async create(dto: CreateWebhookDto, userId: string, workspaceId: string) {
+    await this.assertAllowedUrl(dto.url);
     return this.webhookRepo.insert({
       name: dto.name ?? null,
       url: dto.url,
@@ -37,6 +49,7 @@ export class WebhookService {
   async update(dto: UpdateWebhookDto, workspaceId: string) {
     const existing = await this.webhookRepo.findById(dto.webhookId, workspaceId);
     if (!existing) throw new NotFoundException('Webhook not found');
+    if (dto.url !== undefined) await this.assertAllowedUrl(dto.url);
 
     await this.webhookRepo.update(
       {
@@ -156,21 +169,43 @@ export class WebhookService {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT_MS);
+    let release: (() => Promise<void>) | undefined;
     try {
+      // SSRF guard: re-validated on every delivery (DNS may change) and the
+      // connection is pinned to the validated address. Private/internal
+      // destinations are refused unless ALLOWED_PRIVATE_NETWORKS permits them.
+      const lease = await this.outboundAgentFactory.lease(webhook.url);
+      release = lease.release;
       await fetch(webhook.url, {
         method: 'POST',
         headers,
         body,
         signal: controller.signal,
+        dispatcher: lease.dispatcher,
+        // A redirect could point at an internal host and bypass the guard.
+        redirect: 'manual',
       });
       await this.webhookRepo.touchLastTriggered(webhook.id);
     } catch (err) {
       // Delivery failures must never affect the originating request.
-      this.logger.debug(
+      const log = err instanceof OutboundUrlError ? 'warn' : 'debug';
+      this.logger[log](
         `Webhook ${webhook.id} delivery failed: ${this.msg(err)}`,
       );
     } finally {
       clearTimeout(timeout);
+      await release?.().catch(() => undefined);
+    }
+  }
+
+  private async assertAllowedUrl(url: string) {
+    try {
+      await this.outboundUrlGuard.validate(url);
+    } catch (err) {
+      if (err instanceof OutboundUrlError) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
     }
   }
 
