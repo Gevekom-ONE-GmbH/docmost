@@ -1,6 +1,12 @@
 import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+  createMcpHandler,
+  isLegacyRequest,
+  McpServer,
+  WebStandardStreamableHTTPServerTransport,
+} from '@modelcontextprotocol/server';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { Readable } from 'stream';
 import { z } from 'zod';
 import { InjectKysely } from 'nestjs-kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
@@ -85,24 +91,82 @@ export class McpService {
       ctx.spaceName = space.name;
     }
 
-    const { StreamableHTTPServerTransport } = await import(
-      '@modelcontextprotocol/sdk/server/streamableHttp.js'
-    );
-    const transport = new StreamableHTTPServerTransport({
+    const request = this.toWebRequest(req, body);
+    const legacy = await isLegacyRequest(request, body);
+    const { response, close } = legacy
+      ? await this.handleLegacy(request, body, ctx)
+      : await this.handleModern(request, body, ctx);
+    try {
+      await this.sendWebResponse(response, res);
+    } finally {
+      await close();
+    }
+  }
+
+  /**
+   * 2025-era clients (no per-request envelope): stateless streamable HTTP with
+   * plain JSON responses, as before the SDK v2 migration. The SDK's own legacy
+   * fallback would always answer with an SSE stream.
+   */
+  private async handleLegacy(request: Request, body: unknown, ctx: McpContext) {
+    const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
-    const server = await this.buildServer(ctx);
-    res.on('close', () => {
-      try {
-        void transport.close();
-        void server.close();
-      } catch {
-        // ignore
-      }
-    });
+    const server = this.buildServer(ctx);
     await server.connect(transport);
-    await transport.handleRequest(req, res, body);
+    const response = await transport.handleRequest(request, {
+      parsedBody: body,
+    });
+    return { response, close: () => server.close() };
+  }
+
+  /** 2026-07-28 clients: per-request protocol, a fresh server per request. */
+  private async handleModern(request: Request, body: unknown, ctx: McpContext) {
+    const handler = createMcpHandler(() => this.buildServer(ctx), {
+      legacy: 'reject',
+      // 'auto' answers with plain JSON unless a tool emits mid-call
+      // notifications (ours don't); 'json' would log a warning per request.
+      responseMode: 'auto',
+      onerror: (err) =>
+        this.logger.debug(`MCP request rejected: ${err.message}`),
+    });
+    const response = await handler.fetch(request, { parsedBody: body });
+    return { response, close: () => handler.close() };
+  }
+
+  private toWebRequest(req: IncomingMessage, body: unknown): Request {
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (value === undefined) continue;
+      headers.set(key, Array.isArray(value) ? value.join(', ') : value);
+    }
+    const url = new URL(
+      req.url ?? '/mcp',
+      `http://${req.headers.host ?? 'localhost'}`,
+    );
+    return new Request(url, {
+      method: req.method,
+      headers,
+      body: req.method === 'POST' ? JSON.stringify(body ?? null) : undefined,
+    });
+  }
+
+  private async sendWebResponse(response: Response, res: ServerResponse) {
+    res.statusCode = response.status;
+    response.headers.forEach((value, key) => res.setHeader(key, value));
+    if (!response.body) {
+      res.end();
+      return;
+    }
+    await new Promise<void>((resolve, reject) => {
+      Readable.fromWeb(response.body as any)
+        .on('error', reject)
+        .pipe(res)
+        .on('finish', resolve)
+        .on('close', resolve)
+        .on('error', reject);
+    });
   }
 
   private async resolveSpace(param: string, user: User, workspace: Workspace) {
@@ -164,10 +228,7 @@ export class McpService {
   }
 
   /** Build a fresh MCP server whose tools are scoped to the authenticated user. */
-  async buildServer(ctx: McpContext): Promise<McpServer> {
-    const { McpServer } = await import(
-      '@modelcontextprotocol/sdk/server/mcp.js'
-    );
+  buildServer(ctx: McpContext): McpServer {
     const { user, workspace } = ctx;
     const scopeNote = ctx.spaceId
       ? ` This session is scoped to the "${ctx.spaceName}" space.`
@@ -188,14 +249,16 @@ export class McpService {
         description:
           'Full-text search for pages. Only pages the user can access are returned.' +
           scopeNote,
-        inputSchema: {
+        inputSchema: z.object({
           query: z.string().describe('Search text'),
           spaceId: z
             .string()
             .optional()
-            .describe('Restrict to a space id (ignored when the session is space-scoped)'),
+            .describe(
+              'Restrict to a space id (ignored when the session is space-scoped)',
+            ),
           limit: z.number().int().min(1).max(50).optional(),
-        },
+        }),
       },
       async ({ query, spaceId, limit }) => {
         const res = await this.searchService.searchPage(
@@ -211,7 +274,7 @@ export class McpService {
       {
         description:
           'Fetch a single page (title, content, creator and last editor) by its id.',
-        inputSchema: { pageId: z.string() },
+        inputSchema: z.object({ pageId: z.string() }),
       },
       async ({ pageId }) => {
         const page = await this.pageRepo.findById(pageId, {
@@ -247,13 +310,13 @@ export class McpService {
       {
         description:
           'Resolve user ids (e.g. a page creator/author or last-editor id) to their names and emails.',
-        inputSchema: {
+        inputSchema: z.object({
           userIds: z
             .array(z.string())
             .min(1)
             .max(100)
             .describe('User UUIDs to resolve'),
-        },
+        }),
       },
       async ({ userIds }) => {
         const users = await this.db
@@ -269,8 +332,9 @@ export class McpService {
     server.registerTool(
       'list_spaces',
       {
-        description: 'List the spaces the user has access to in this workspace.',
-        inputSchema: {},
+        description:
+          'List the spaces the user has access to in this workspace.',
+        inputSchema: z.object({}),
       },
       async () => {
         const spaces = await this.db
@@ -291,15 +355,17 @@ export class McpService {
           description:
             'Create a new page from Markdown content. Returns the new page id.' +
             (ctx.spaceId ? ' spaceId defaults to the active space.' : ''),
-          inputSchema: {
+          inputSchema: z.object({
             spaceId: z
               .string()
               .optional()
-              .describe('Target space id (optional when the session is space-scoped)'),
+              .describe(
+                'Target space id (optional when the session is space-scoped)',
+              ),
             title: z.string(),
             content: z.string().describe('Markdown content'),
             parentPageId: z.string().optional(),
-          },
+          }),
         },
         async ({ spaceId, title, content, parentPageId }) => {
           const targetSpaceId = ctx.spaceId ?? spaceId;
@@ -311,7 +377,9 @@ export class McpService {
             await this.assertCanCreatePage(user, targetSpaceId, parentPageId);
           } catch (err) {
             if (err instanceof ForbiddenException) {
-              return this.error('You do not have permission to create pages here');
+              return this.error(
+                'You do not have permission to create pages here',
+              );
             }
             throw err;
           }
@@ -341,11 +409,11 @@ export class McpService {
         {
           description:
             'Update a page with Markdown content. operation: replace (default), append or prepend.',
-          inputSchema: {
+          inputSchema: z.object({
             pageId: z.string(),
             content: z.string().describe('Markdown content'),
             operation: z.enum(['replace', 'append', 'prepend']).optional(),
-          },
+          }),
         },
         async ({ pageId, content, operation }) => {
           const page = await this.pageRepo.findById(pageId);

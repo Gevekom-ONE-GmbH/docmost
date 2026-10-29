@@ -2,28 +2,36 @@ import { ActionIcon, Menu, Tooltip } from "@mantine/core";
 import {
   IconDots,
   IconEdit,
+  IconLink,
   IconTrash,
   IconCircleCheck,
   IconCircleCheckFilled,
 } from "@tabler/icons-react";
 import { modals } from "@mantine/modals";
+import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 import { useUpgradeLabel } from "@/ee/hooks/use-upgrade-label";
+import { useClipboard } from "@/hooks/use-clipboard";
+import { getAppUrl } from "@/lib/config";
 
 type CommentMenuProps = {
+  commentId: string;
   onEditComment: () => void;
   onDeleteComment: () => void;
   onResolveComment?: () => void;
   canEdit?: boolean;
+  canManage?: boolean;
   isResolved?: boolean;
   isParentComment?: boolean;
 };
 
 function CommentMenu({
+  commentId,
   onEditComment,
   onDeleteComment,
   onResolveComment,
   canEdit = true,
+  canManage = false,
   isResolved = false,
   isParentComment = false,
 }: CommentMenuProps) {
@@ -31,6 +39,13 @@ function CommentMenu({
   // Clean-room: comment resolution is enabled (no EE license gate).
   const canResolve = true;
   const upgradeLabel = useUpgradeLabel();
+  const clipboard = useClipboard({ timeout: 500 });
+
+  const handleCopyLink = () => {
+    const link = `${getAppUrl()}${window.location.pathname}?commentId=${commentId}`;
+    clipboard.copy(link);
+    notifications.show({ message: t("Link copied") });
+  };
 
   //@ts-ignore
   const openDeleteModal = () =>
@@ -64,6 +79,7 @@ function CommentMenu({
           </Menu.Item>
         )}
         {isParentComment &&
+          canManage &&
           (canResolve ? (
             <Menu.Item
               onClick={onResolveComment}
@@ -85,11 +101,19 @@ function CommentMenu({
             </Tooltip>
           ))}
         <Menu.Item
-          leftSection={<IconTrash size={14} />}
-          onClick={openDeleteModal}
+          leftSection={<IconLink size={14} />}
+          onClick={handleCopyLink}
         >
-          {t("Delete comment")}
+          {t("Copy link")}
         </Menu.Item>
+        {canManage && (
+          <Menu.Item
+            leftSection={<IconTrash size={14} />}
+            onClick={openDeleteModal}
+          >
+            {t("Delete comment")}
+          </Menu.Item>
+        )}
       </Menu.Dropdown>
     </Menu>
   );
