@@ -5,6 +5,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { useTimeAgo } from "@/hooks/use-time-ago";
 import CommentEditor from "@/features/comment/components/comment-editor";
 import { pageEditorAtom } from "@/features/editor/atoms/editor-atoms";
+import { showTabAtElement } from "@/features/editor/utils";
 import { isEditorReady } from "@docmost/editor-ext";
 import CommentActions from "@/features/comment/components/comment-actions";
 import CommentMenu from "@/features/comment/components/comment-menu";
@@ -108,6 +109,7 @@ function CommentListItem({
       `.comment-mark[data-comment-id="${comment.id}"]`,
     );
     if (el) {
+      showTabAtElement(el);
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       el.classList.add("comment-highlight");
       setTimeout(() => {
@@ -169,16 +171,19 @@ function CommentListItem({
                 </Tooltip>
               )}
 
-              {(currentUser?.user?.id === comment.creatorId || userSpaceRole === 'admin') && (
-                <CommentMenu
-                  onEditComment={handleEditToggle}
-                  onDeleteComment={handleDeleteComment}
-                  onResolveComment={handleResolveComment}
-                  canEdit={currentUser?.user?.id === comment.creatorId}
-                  isResolved={comment.resolvedAt != null}
-                  isParentComment={!comment.parentCommentId}
-                />
-              )}
+              <CommentMenu
+                commentId={comment.id}
+                onEditComment={handleEditToggle}
+                onDeleteComment={handleDeleteComment}
+                onResolveComment={handleResolveComment}
+                canEdit={currentUser?.user?.id === comment.creatorId}
+                canManage={
+                  currentUser?.user?.id === comment.creatorId ||
+                  userSpaceRole === "admin"
+                }
+                isResolved={comment.resolvedAt != null}
+                isParentComment={!comment.parentCommentId}
+              />
             </div>
           </Group>
 

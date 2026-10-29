@@ -86,17 +86,12 @@ function redirectToLogin() {
     // the oauth consent page redirects to login itself, preserving its query string
     "/oauth/consent",
   ];
-  if (!exemptPaths.some((path) => window.location.pathname.startsWith(path))) {
-    // Preserve the full deep link (search + hash, e.g. heading anchors) so the
-    // user lands exactly where they were after logging in.
-    const redirectTo =
-      window.location.pathname +
-      window.location.search +
-      window.location.hash;
-    if (redirectTo === APP_ROUTE.HOME) {
+  const { pathname, search, hash } = window.location;
+  if (!exemptPaths.some((path) => pathname.startsWith(path))) {
+    if (pathname === APP_ROUTE.HOME) {
       window.location.href = APP_ROUTE.AUTH.LOGIN;
     } else {
-      const params = new URLSearchParams({ redirect: redirectTo });
+      const params = new URLSearchParams({ redirect: pathname + search + hash });
       window.location.href = `${APP_ROUTE.AUTH.LOGIN}?${params.toString()}`;
     }
   }
