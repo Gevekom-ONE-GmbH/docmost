@@ -27,3 +27,26 @@ describe('DomainService.getUrl', () => {
     expect(service.getUrl(null)).toBe('https://docmost.gevekom.one');
   });
 });
+
+describe('DomainService.getWorkspaceUrl', () => {
+  it('returns APP_URL when self-hosted without multi-workspace mode', () => {
+    const service = createService({ multi: false });
+    expect(service.getWorkspaceUrl({ hostname: 'wiki.svntn.ai' })).toBe(
+      'https://docmost.gevekom.one',
+    );
+  });
+
+  it('returns the workspace host in multi-workspace mode', () => {
+    const service = createService({ multi: true });
+    expect(service.getWorkspaceUrl({ hostname: 'wiki.svntn.ai' })).toBe(
+      'https://wiki.svntn.ai',
+    );
+  });
+
+  it('falls back to APP_URL in multi-workspace mode without hostname', () => {
+    const service = createService({ multi: true });
+    expect(service.getWorkspaceUrl({ hostname: null })).toBe(
+      'https://docmost.gevekom.one',
+    );
+  });
+});

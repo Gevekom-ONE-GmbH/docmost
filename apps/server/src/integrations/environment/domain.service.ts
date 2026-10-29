@@ -29,6 +29,10 @@ export class DomainService {
     hostname?: string | null;
     customDomain?: string | null;
   }): string {
+    if (this.environmentService.isMultiWorkspace() && workspace.hostname) {
+      // Gevekom multi-workspace: each workspace is served on its own host
+      return this.getUrl(workspace.hostname);
+    }
     if (!this.environmentService.isCloud()) {
       return this.environmentService.getAppUrl();
     }

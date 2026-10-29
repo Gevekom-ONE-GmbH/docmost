@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { OAuthController } from './oauth.controller';
 import { OAuthCompleteAuthFilter } from './oauth-complete-auth.filter';
+import { WorkspaceResolverService } from '../../../integrations/multi-workspace/workspace-resolver.service';
 import { OAuthStatePayload } from './oauth.service';
 import WorkspaceAbilityFactory from '../../casl/abilities/workspace-ability.factory';
 import { UserRole } from '../../../common/helpers/types/permission';
@@ -43,7 +44,14 @@ const environmentService = {
   isCloud: () => false,
   getAppUrl: () => 'https://acme.example',
   getSubdomainHost: () => undefined,
+  isMultiWorkspace: () => false,
+  getWorkspaceHosts: () => '',
 } as any;
+const multiWorkspaceEnvironment = {
+  ...environmentService,
+  isMultiWorkspace: () => true,
+  getWorkspaceHosts: () => 'acme.example,wiki.subsidiary.example',
+};
 const cloudEnvironment = {
   ...environmentService,
   isCloud: () => true,
@@ -96,6 +104,7 @@ function buildController(
     { getProvider: jest.fn().mockReturnValue({ definition: {} }) } as any,
     encryptionService,
     environment,
+    new WorkspaceResolverService({} as any, environment, {} as any),
   );
 
   return { controller, exchangeCodeForTokens, getInstallAuthorizationUrl, getAuthorizationUrl };
@@ -330,6 +339,16 @@ describe('OAuthController callback', () => {
         'https://acme.undefined',
       ],
       ['a malformed return URL', cloudEnvironment, 'not a url'],
+      [
+        'a host outside WORKSPACE_HOSTS in multi-workspace mode',
+        multiWorkspaceEnvironment,
+        'https://evil.example',
+      ],
+      [
+        'another workspace host while multi-workspace mode is off',
+        { ...multiWorkspaceEnvironment, isMultiWorkspace: () => false },
+        'https://wiki.subsidiary.example',
+      ],
     ])('refuses to hand a ticket to %s', async (_label, environment, returnUrl) => {
       const { controller, exchangeCodeForTokens } = buildController(
         { returnUrl },
@@ -362,6 +381,11 @@ describe('OAuthController callback', () => {
           getSubdomainHost: () => 'localhost:3000',
         },
         'http://acme.localhost:3000',
+      ],
+      [
+        'an allowlisted workspace host in multi-workspace mode',
+        multiWorkspaceEnvironment,
+        'https://wiki.subsidiary.example',
       ],
     ])('hands the ticket to %s', async (_label, environment, returnUrl) => {
       const { controller } = buildController({ returnUrl }, environment);
@@ -526,6 +550,7 @@ describe('OAuthController complete without a session', () => {
           WorkspaceRepo,
           UserSessionRepo,
           SessionActivityService,
+          WorkspaceResolverService,
         ].map((provide) => ({ provide, useValue: {} })),
       ],
     }).compile();

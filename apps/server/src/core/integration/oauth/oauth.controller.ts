@@ -47,6 +47,7 @@ import {
   EncryptionService,
 } from '../../../integrations/encryption/encryption.service';
 import { EnvironmentService } from '../../../integrations/environment/environment.service';
+import { WorkspaceResolverService } from '../../../integrations/multi-workspace/workspace-resolver.service';
 import { COMPLETION_FALLBACK_REDIRECT, nonceCookieName } from './oauth.utils';
 import { OAuthCompleteAuthFilter } from './oauth-complete-auth.filter';
 
@@ -73,6 +74,7 @@ export class OAuthController {
     private readonly registry: IntegrationRegistry,
     private readonly encryptionService: EncryptionService,
     private readonly environmentService: EnvironmentService,
+    private readonly workspaceResolver: WorkspaceResolverService,
   ) {}
 
   @RequireSessionAuth()
@@ -197,7 +199,11 @@ export class OAuthController {
       returnHost === new URL(this.environmentService.getAppUrl()).host ||
       (this.environmentService.isCloud() &&
         !!subdomainHost &&
-        !!returnHost?.endsWith(`.${subdomainHost}`));
+        !!returnHost?.endsWith(`.${subdomainHost}`)) ||
+      // Gevekom multi-workspace: the central callback on APP_URL hands the
+      // code back to any allowlisted workspace host (WORKSPACE_HOSTS).
+      (this.workspaceResolver.isMultiWorkspace() &&
+        this.workspaceResolver.isAllowedHost(returnHost));
 
     if (!isDocmostHost) {
       this.logger.warn(
