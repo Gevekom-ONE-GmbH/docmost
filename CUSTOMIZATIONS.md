@@ -4,7 +4,7 @@ Dieser Fork von [Docmost](https://github.com/docmost/docmost) enthält Gevekom-e
 Anpassungen. Dieses Dokument listet **alle** Änderungen gegenüber dem Upstream auf,
 damit sie bei einem künftigen Docmost-Update wieder eingespielt werden können.
 
-**Aktueller Stand:** Upstream **v0.96.0** (Upgrade von v0.90.1 im Oktober 2026).
+**Aktueller Stand:** Upstream **v0.97.0** (v0.90.1 → v0.96.0 im Oktober 2026 per Neuauftrag, v0.96.0 → v0.97.0 am 29.10.2026 per Merge).
 
 ## Update-Vorgehen (bewährt)
 
@@ -19,14 +19,28 @@ nicht als Merge:
 5. `pnpm install --frozen-lockfile` · `nx run server:build` · `nx run client:build`
 6. Testen (siehe „Lokale Testumgebung" unten), dann Merge nach `main`.
 
-**Stolpersteine (Upgrade auf v0.96.0):**
+**Kleine Upstream-Sprünge (seit v0.97.0 bewährt):** Basiert `main` sauber auf dem
+vorherigen Upstream-Tag (Fork-Diff = `git diff vALT main`), reicht
+`git switch -c upgrade/vX.Y.Z main && git merge vX.Y.Z`. Die Konflikte zeigen genau die
+betroffenen Touch-Points; danach pro Touch-Point-Datei prüfen, dass der Fork-Diff gleich
+groß geblieben ist (`git diff vALT main -- f` vs. `git diff vX.Y.Z -- f`). Zusätzlich
+**ohne Textkonflikt** prüfen: entfernte/ersetzte Dependencies (`apps/server/package.json`),
+neue Upstream-Stellen, die `getAppUrl()`/`getWorkspaceUrl()` nutzen (Multi-Host B9), und
+neue Lizenz-Gates.
+
+**Stolpersteine (Upgrades auf v0.96.0 / v0.97.0):**
 - Das lokale Tag `v0.90.1` ist **unser eigenes** Release-Tag (zeigt auf Fork-Code), nicht
   das Upstream-Tag. Upstream-Drift immer gegen den echten Upstream-Commit diffen
   (`git ls-remote upstream 'v*'`), sonst erscheinen eigene Änderungen als Upstream-Löschungen.
   Eigene Release-Tags daher künftig mit Suffix (`v0.96.0-1`, …) vergeben.
 - Für `tsc --noEmit` (z. B. in Worktrees) zuerst `packages/editor-ext` und
   `packages/base-formula` bauen, sonst hunderte Schein-Fehler. Ist `pnpm` nicht im PATH:
-  `corepack pnpm`.
+  `corepack pnpm` — `nx` ruft aber selbst `pnpm` auf und scheitert dann still (veraltetes
+  `dist/`); Abhilfe: `corepack enable --install-directory <dir> pnpm` und `<dir>` in den PATH.
+  Bei veraltetem `editor-ext`-Build `packages/editor-ext/dist` löschen (stale `tsbuildinfo`).
+- Vorbestehende Upstream-Spec-Fehler (Stand v0.97.0, nicht von uns): ~15 Boilerplate-Specs
+  („should be defined" ohne DI-Setup) und `workspace.service.spec.ts` (falsche
+  Konstruktor-Arity). Alle übrigen Server-Specs müssen grün sein.
 - **Migrations-Reihenfolge:** Upstream liefert u. U. Migrationen mit **älterem**
   Zeitstempel als unsere bereits produktiv gelaufenen (z. B. `20260529-bases` /
   `20260620-personal-spaces` vs. unser `20260701-webhooks`). Deshalb ist in beiden
@@ -48,12 +62,16 @@ nicht als Merge:
 | A1 | **Export `nozip`-Flag** — liefert Seitenbaum als JSON statt ZIP | `apps/server/src/integrations/export/export.controller.ts`, `export.service.ts` (Zweig `type: 'json'` + `buildTreeWithMetadata`) |
 | A2 | **Share-Button aus Seiten-Kopfzeile entfernt** | `apps/client/src/features/page/components/header/page-header-menu.tsx` (Entfernung von `PageShareModal` + Import aus `@/ee/page-permission`) |
 | A3 | **`authToken` automatisch aus Browser-URL entfernen** (für HAProxy-SSO-Deeplinks, nur Gevekom-Workspace relevant) | `apps/client/src/App.tsx` (`useEffect` in der lazy-geladenen `App`, entfernt `?authToken=` aus search/hash, Hash bleibt erhalten) |
-| A4 | **Deep-Link-Erhalt bei Login-Redirect** (search + hash) auf Basis des nativen `?redirect=`-Flows | `apps/client/src/lib/api-client.ts` (`redirectToLogin`) |
+| A4 | ~~**Deep-Link-Erhalt bei Login-Redirect** (search + hash)~~ — seit v0.97.0 nativ in Upstream, kein Touch-Point mehr | ~~`apps/client/src/lib/api-client.ts`~~ |
 | A5 | **Dockerfile Build-Heap** `NODE_OPTIONS=--max-old-space-size=8192` in der builder-Stage | `Dockerfile` |
-| A6 | **docker-compose**: eigenes Image `docmost-gevekom:0.96.0`, Postgres auf `17-alpine` gepinnt; DB-Volume auf `/var/lib/postgresql/data` (Upstreams `/var/lib/postgresql` ist das PG-18-Layout und landete bei PG 17 in einem anonymen Volume) | `docker-compose.yml` |
+| A6 | **docker-compose**: eigenes Image `docmost-gevekom:0.97.0`, Postgres auf `17-alpine` gepinnt; DB-Volume auf `/var/lib/postgresql/data` (Upstreams `/var/lib/postgresql` ist das PG-18-Layout und landete bei PG 17 in einem anonymen Volume) | `docker-compose.yml` |
 | A7 | **Export nur für Bearbeiter** — Viewer dürfen Seiten/Spaces nicht exportieren. `POST /pages/export` (inkl. `nozip`) prüft `validateCanEdit` statt `validateCanView` (berücksichtigt auch Seitenberechtigungen); `filterEditablePagesForExport()` entfernt nur lesbare Unterseiten samt Teilbaum. Space-Export war bereits auf Space-Admins beschränkt. UI: „Export" im Seitenmenü nur ohne `readOnly`, „Export page" im Baum nur bei Bearbeitungsrecht, „Export space" in der Sidebar nur für Space-Admins (`canExportSpace`). **Service-Accounts** für den JSON-Export brauchen Bearbeitungsrechte. MCP `get_page` bleibt für Viewer bewusst erlaubt (Entscheidung 19.10.2026). | `integrations/export/export.controller.ts`, `export.service.ts`; Client: `page-header-menu.tsx`, `space-tree-node-menu.tsx`, `space-sidebar.tsx` |
 
-> Hinweis A4: Der frühere Cookie-basierte `originalPage`-Redirect wurde **entfernt** — er
+> Hinweis A4: Seit v0.97.0 erhält Upstreams `redirectToLogin` selbst `search + hash`
+> (für Kommentar-Deep-Links) — unser Touch-Point in `api-client.ts` entfällt, die Datei
+> entspricht wieder Upstream. Das Verhalten (Deep-Link inkl. Anker nach Login) bleibt.
+>
+> Hinweis A4 (alt): Der frühere Cookie-basierte `originalPage`-Redirect wurde **entfernt** — er
 > ist im HAProxy-SSO-Flow redundant (der Proxy übernimmt „zurück zur Originalseite" via
 > `?redirect=%[url]`), und v0.90.1 hat den Redirect nativ inkl. Open-Redirect-Schutz.
 
@@ -254,16 +272,17 @@ Server seit v0.96.0: `/comments/resolve` mit `@OAuthScope('write')` und derselbe
 
 Docmost stellt einen MCP-Server unter **`/mcp`** bereit (vom `/api`-Prefix in
 `main.ts` ausgenommen — seit v0.96.0 macht Upstream das selbst, kein Touch-Point mehr), damit externe AI-Clients auf den
-Wiki-Inhalt zugreifen. Clean-Room, kein EE-Code; nutzt `@modelcontextprotocol/sdk`.
+Wiki-Inhalt zugreifen. Clean-Room, kein EE-Code; nutzt seit v0.97.0
+`@modelcontextprotocol/server` **v2** (Upstream hat `@modelcontextprotocol/sdk` entfernt).
 
 **Server — neue Dateien:**
-- `apps/server/src/integrations/mcp/` (`mcp.controller.ts`, `mcp.service.ts`, `mcp.module.ts`)
+- `apps/server/src/integrations/mcp/` (`mcp.controller.ts`, `mcp.service.ts`, `mcp.module.ts`, `mcp.service.spec.ts`)
 
 **Server — Touch-Points:**
 - `app.module.ts`: `McpModule` in `imports`
 - `core/workspace/services/workspace.service.ts`: EE-Lizenz-Gate für `mcpEnabled` entfernt
 
-**Mechanik:** Streamable-HTTP **stateless** — frischer Server+Transport pro Request, **kein** Session-Store (`sessionIdGenerator: undefined`, `enableJsonResponse`). Läuft damit hinter einem Load-Balancer über **mehrere Instanzen ohne Session-Affinität**. Auth über `JwtAuthGuard`
+**Mechanik:** Streamable-HTTP **stateless** — frischer Server pro Request, **kein** Session-Store. Zwei Protokoll-Generationen (Weiche über `isLegacyRequest`): 2025er-Clients über `WebStandardStreamableHTTPServerTransport` (`sessionIdGenerator: undefined`, `enableJsonResponse` → reines JSON wie bisher; der SDK-eigene Legacy-Fallback würde immer SSE liefern), 2026-07-28-Clients über `createMcpHandler(..., { legacy: 'reject', responseMode: 'auto' })`. Node-`req`/`res` werden in Web-`Request`/`Response` übersetzt. Läuft damit hinter einem Load-Balancer über **mehrere Instanzen ohne Session-Affinität**. Auth über `JwtAuthGuard`
 → Docmost-**API-Key** als Bearer; Tools sind auf die Rechte des Users beschränkt.
 Tools: `search_pages`, `get_page`, `list_spaces` (read), `create_page`, `update_page`
 (write). Optionales **Space-Scoping** über `?space=<id|slug>` (Suche/Anlegen laufen dann in diesem Space). `get_page` löst Autor/letzten Bearbeiter zu **Namen** auf; das Tool **`get_users`** löst beliebige User-UUIDs → Namen/E-Mail auf. Write-Tools werden nur registriert, wenn `MCP_ALLOW_WRITE != 'false'`
@@ -300,7 +319,8 @@ Admins und Audit-Logs sind über `workspace_id` getrennt (Schema/`JwtStrategy` d
 - `core/auth/auth.controller.ts` (`setupWorkspace`), `core/auth/services/auth.service.ts` (`setup(dto, opts)`), `core/auth/services/signup.service.ts` (`initialSetup(dto, trx, opts)`): geprüften Host in derselben Transaktion als `workspaces.hostname` setzen
 - `core/workspace/controllers/workspace.controller.ts`: Hostname-Änderung über `/workspace/update` im Multi-Modus verboten (403)
 - `integrations/environment/environment.service.ts`: `isMultiWorkspace()`, `getWorkspaceHosts()`, `getDefaultWorkspaceHost()`
-- `integrations/environment/domain.service.ts`: `getUrl(hostname)` liefert im Multi-Modus `<proto>://<workspace.hostname>` (Einladungs-, Passwort-Reset-, Benachrichtigungs-, Export- und Attachment-Links)
+- `integrations/environment/domain.service.ts`: `getUrl(hostname)` liefert im Multi-Modus `<proto>://<workspace.hostname>` (Einladungs-, Passwort-Reset-, Benachrichtigungs-, Export- und Attachment-Links); seit v0.97.0 ebenso `getWorkspaceUrl(workspace)` (Rücksprung des Integrations-OAuth)
+- `core/integration/oauth/oauth.controller.ts` (seit v0.97.0): Der zentrale OAuth-Callback der Integrationen (GitHub, GitLab, Jira, Linear, Figma, Azure DevOps, Slack …) liegt auf `APP_URL` und reicht den Code an den Workspace-Host weiter; im Multi-Modus werden dafür zusätzlich Hosts aus `WORKSPACE_HOSTS` als Rücksprungziel akzeptiert (`WorkspaceResolverService.isAllowedHost`)
 - `integrations/mcp/mcp.controller.ts` (B8): `/mcp` liegt außerhalb des `/api`-Prefix, die Domain-Middleware läuft dort nicht → der Controller prüft im Multi-Modus selbst, dass Host-Workspace = Token-Workspace (sonst 403)
 
 **Mechanik:**
@@ -316,7 +336,7 @@ Admins und Audit-Logs sind über `workspace_id` getrennt (Schema/`JwtStrategy` d
 - `DEFAULT_WORKSPACE_HOST=docmost.gevekom.one` (einmaliger Backfill des Bestands-Workspace; im **selben** Rollout wie `MULTI_WORKSPACE=true` setzen, sonst ist Gevekom bis zum Backfill 404)
 - `APP_URL` bleibt (Protokoll + Fallback); `COLLAB_URL` leer lassen
 
-**Betrieb:** HAProxy/Swarm muss beide Hosts mit erhaltenem `Host` (oder vom Proxy gesetztem/überschriebenem `X-Forwarded-Host`) auf denselben Service leiten; TLS für beide Hosts; alle Replicas mit identischer Env. Das **Setup für einen neuen Host sofort nach Freischaltung** durchführen — der erste Besucher wird Owner (alternativ Host erst nach dem Setup im HAProxy freigeben). Der HAProxy-SSO-Flow (A3/A4) gilt nur für `docmost.gevekom.one`. `MAIL_FROM_*` ist global, für beide Workspaces gilt derselbe Absender.
+**Betrieb:** HAProxy/Swarm muss beide Hosts mit erhaltenem `Host` (oder vom Proxy gesetztem/überschriebenem `X-Forwarded-Host`) auf denselben Service leiten; TLS für beide Hosts; alle Replicas mit identischer Env. Das **Setup für einen neuen Host sofort nach Freischaltung** durchführen — der erste Besucher wird Owner (alternativ Host erst nach dem Setup im HAProxy freigeben). Der HAProxy-SSO-Flow (A3/A4) gilt nur für `docmost.gevekom.one`. `MAIL_FROM_*` ist global, für beide Workspaces gilt derselbe Absender. Integrationen (v0.97.0): bei den OAuth-Apps der Provider genügt **eine** Redirect-URI auf `APP_URL` (`<APP_URL>/api/integrations/oauth/<type>/callback`), auch für svntn.
 
 ## Hinweise zur Backend-API (native Docmost-Features)
 

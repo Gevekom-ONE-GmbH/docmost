@@ -1,6 +1,6 @@
 services:
   docmost:
-    image: docmost-gevekom:0.96.0
+    image: docmost-gevekom:0.97.0
     depends_on:
       - db
       - redis
