@@ -26,6 +26,7 @@ import { IntegrationModule } from './integration/integration.module';
 import { GitHubModule } from './integration/providers/github/github.module';
 import { FigmaModule } from './integration/providers/figma/figma.module';
 import { LinearModule } from './integration/providers/linear/linear.module';
+import { JiraModule } from './integration/providers/jira/jira.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { SessionModule } from './session/session.module';
 import { PagePermissionModule } from './page/page-permission/page-permission.module';
@@ -57,6 +58,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     GitHubModule,
     FigmaModule,
     LinearModule,
+    JiraModule,
     SessionModule,
     PagePermissionModule,
     PageVerificationModule,
