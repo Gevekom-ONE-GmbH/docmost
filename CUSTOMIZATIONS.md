@@ -338,6 +338,39 @@ Admins und Audit-Logs sind über `workspace_id` getrennt (Schema/`JwtStrategy` d
 
 **Betrieb:** HAProxy/Swarm muss beide Hosts mit erhaltenem `Host` (oder vom Proxy gesetztem/überschriebenem `X-Forwarded-Host`) auf denselben Service leiten; TLS für beide Hosts; alle Replicas mit identischer Env. Das **Setup für einen neuen Host sofort nach Freischaltung** durchführen — der erste Besucher wird Owner (alternativ Host erst nach dem Setup im HAProxy freigeben). Der HAProxy-SSO-Flow (A3/A4) gilt nur für `docmost.gevekom.one`. `MAIL_FROM_*` ist global, für beide Workspaces gilt derselbe Absender. Integrationen (v0.97.0): bei den OAuth-Apps der Provider genügt **eine** Redirect-URI auf `APP_URL` (`<APP_URL>/api/integrations/oauth/<type>/callback`), auch für svntn.
 
+### B10) Jira-Integration (Jira Cloud, Link-Vorschauen)
+
+Upstream v0.97.0 liefert die Integrationen GitHub, Linear und Figma im Kern; **Jira**
+(wie auch GitLab, Azure DevOps, Slack) liegt nur im geschlossenen EE-Modul. Nachgebaut:
+ein eigener Jira-Provider auf dem Integrations-Framework des Kerns. Client-seitig war
+nichts zu tun — Editor-Muster (`jira-issue`), Icon und Jira-Karte sind bereits im Kern.
+
+**Server — neue Dateien:**
+- `apps/server/src/core/integration/providers/jira/` (`jira.module.ts`, `jira.provider.ts`, `jira.service.ts`, `jira-patterns.ts` + Specs)
+
+**Server — Touch-Points:**
+- `core/core.module.ts`: `JiraModule` in `imports` (neben `LinearModule`)
+
+**Mechanik:** Nur **Jira Cloud** (`<site>.atlassian.net`; Self-Hosted/Data Center nicht).
+Atlassian OAuth 2.0 (3LO) **pro Benutzer** (Einstellungen → Konto → Verbindungen), Scopes
+`read:jira-work read:jira-user offline_access`, `audience=api.atlassian.com`. Atlassian
+rotiert Refresh-Tokens — der Kern speichert das jeweils neue. Beim Unfurl werden die für das
+Token erreichbaren Sites (`/oauth/token/accessible-resources`) abgefragt, die Site des Links
+gewählt (`cloudId`) und das Issue über `api.atlassian.com/ex/jira/<cloudId>/rest/api/3/issue/<KEY>`
+mit den Rechten des Benutzers gelesen. Fremde Site oder 404 → keine Karte. Karten werden
+5 Minuten in Redis gecacht (Kern-`UnfurlService`).
+
+**Einrichtung:**
+1. developer.atlassian.com → *Create* → *OAuth 2.0 integration*.
+2. *Permissions* → *Jira API* hinzufügen → Scopes `read:jira-work` und `read:jira-user`.
+3. *Authorization* → Callback-URL `https://docmost.gevekom.one/api/integrations/oauth/jira/callback`
+   (gilt auch für `wiki.svntn.ai`, siehe B9).
+4. *Distribution* → *Sharing* aktivieren, sonst kann sich nur der App-Owner verbinden.
+5. Env (Stack-Datei, alle Replicas): `INTEGRATION_ATLASSIAN_CLIENT_ID`, `INTEGRATION_ATLASSIAN_CLIENT_SECRET`
+   (Präfix `ATLASSIAN`, nicht `JIRA` — `credentialsKey: 'atlassian'` wie Upstream).
+6. In Docmost: Einstellungen → Integrationen → Jira installieren (Admin); danach verbindet
+   jeder Benutzer sein Atlassian-Konto selbst.
+
 ## Hinweise zur Backend-API (native Docmost-Features)
 
 Kein Fork-Code, aber für die Backend-Integration relevant:
